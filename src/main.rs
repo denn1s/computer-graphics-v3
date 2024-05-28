@@ -1,46 +1,35 @@
-mod framebuffer;
+ // main.rs
 
-// use nalgebra_glm as glm;
-use minifb::{Key, Scale, Window, WindowOptions};
-use framebuffer::{Framebuffer, WIDTH, HEIGHT};
+mod framebuffer;
+mod line;
+mod bmp;
+
+use framebuffer::Framebuffer;
+use line::Line;
+use bmp::WriteBmp;
 
 fn main() {
-  let mut window = Window::new(
-    "Framebuffer example",
-    WIDTH,
-    HEIGHT,
-    WindowOptions {
-      scale: Scale::X16,
-      // borderless: true,
-      ..WindowOptions::default()
-    },
-  ).unwrap();
-  window.set_target_fps(15);
+    let width = 800;
+    let height = 600;
+    let mut framebuffer = Framebuffer::new(width, height);
 
-  let mut framebuffer = Framebuffer::new();
-
-  let mut x: i32 = 40;
-  let mut y: i32 = 30;
-  let mut speed_x: i32 = 1;
-  let mut speed_y: i32 = 1;
-
-
-  while window.is_open() && !window.is_key_down(Key::Escape) {
+    // Clear the framebuffer with a white background
+    framebuffer.set_background_color(0xFFFFFF);
     framebuffer.clear();
 
-    if x == WIDTH as i32 || x == 0 {
-      speed_x = speed_x * -1;
+    // Set the current drawing color to black
+    framebuffer.set_current_color(0x000000);
+
+    // Draw some lines using Bresenham's algorithm
+    framebuffer.line(100, 100, 700, 500);
+    framebuffer.line(700, 100, 100, 500);
+    framebuffer.line(400, 50, 400, 550);
+    framebuffer.line(50, 300, 750, 300);
+
+    // Save the framebuffer as a BMP file
+    let output_file = "lines.bmp";
+    match framebuffer.render_buffer(output_file) {
+        Ok(_) => println!("Image saved as {}", output_file),
+        Err(e) => eprintln!("Error saving image: {}", e),
     }
-
-    if y == HEIGHT as i32 || y == 0 {
-      speed_y = speed_y * -1;
-    }
-
-    x += speed_x;
-    y += speed_y;
-
-    framebuffer.point(x as usize, y as usize, 0xFFFFFF);
-
-    window.update_with_buffer(&framebuffer.buffer, WIDTH, HEIGHT).unwrap();
-  }
-}
+} 
