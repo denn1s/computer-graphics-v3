@@ -1,35 +1,58 @@
- // main.rs
 
+use minifb::{Key, Window, WindowOptions};
+use std::time::Duration;
 mod framebuffer;
-mod line;
-mod bmp;
-
-use framebuffer::Framebuffer;
-use line::Line;
-use bmp::WriteBmp;
 
 fn main() {
-    let width = 800;
-    let height = 600;
-    let mut framebuffer = Framebuffer::new(width, height);
+  let window_width = 800;
+  let window_height = 600;
 
-    // Clear the framebuffer with a white background
-    framebuffer.set_background_color(0xFFFFFF);
+  let framebuffer_width = 80;
+  let framebuffer_height = 60;
+
+  let frame_delay = Duration::from_millis(16);
+
+  let mut framebuffer = framebuffer::Framebuffer::new(framebuffer_width, framebuffer_height);
+
+  let mut window = Window::new(
+    "Rust Graphics - Framebuffer Example",
+    window_width,
+    window_height,
+    WindowOptions::default(),
+  ).unwrap();
+
+  framebuffer.set_background_color(0x333355);
+
+  let mut x = 1 as i32;
+  let mut speed = 1 as i32;
+
+  while window.is_open() {
+    // listen to inputs
+    if window.is_key_down(Key::Escape) {
+      break;
+    }
+
+    // prepare variables for rendering
+    if x as usize == framebuffer_width {
+      speed = -1;
+    }
+    if x == 0 {
+      speed = 1;
+    }
+    x += speed;
+
+    // Clear the framebuffer
     framebuffer.clear();
 
-    // Set the current drawing color to black
-    framebuffer.set_current_color(0x000000);
+    // Draw some points
+    framebuffer.set_current_color(0xFFDDDD);
+    framebuffer.point(x as usize, 40);
 
-    // Draw some lines using Bresenham's algorithm
-    framebuffer.line(100, 100, 700, 500);
-    framebuffer.line(700, 100, 100, 500);
-    framebuffer.line(400, 50, 400, 550);
-    framebuffer.line(50, 300, 750, 300);
+    // Update the window with the framebuffer contents
+    window
+      .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
+      .unwrap();
 
-    // Save the framebuffer as a BMP file
-    let output_file = "lines.bmp";
-    match framebuffer.render_buffer(output_file) {
-        Ok(_) => println!("Image saved as {}", output_file),
-        Err(e) => eprintln!("Error saving image: {}", e),
-    }
-} 
+    std::thread::sleep(frame_delay);
+  }
+}
