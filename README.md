@@ -1,28 +1,66 @@
-# Computer Graphics with Rust: Framebuffer Lesson
+# Lesson 3: Understanding the Main Render Loop
 
-## Introduction
+In this lesson, we will dive into the core of real-time graphics: the main render loop. We will break down its components and understand how each part works together to create smooth, responsive graphics applications.
 
-Welcome to the Computer Graphics course with Rust! In this lesson, we'll dive into the fundamental concept of a framebuffer and how to implement it using Rust programming language. We'll be using the `minifb` library for window management and pixel manipulation, and the `nalgebra_glm` library for potential future use with linear algebra operations.
+## Key Definitions
 
-## What is a Framebuffer?
+    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
+    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
+    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
+    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
 
-A framebuffer is a data structure that represents the pixels displayed on a computer screen. It holds information about the color and intensity of each pixel on the screen. Think of it as a canvas where you can draw graphics, text, and images.
+## Main Parts of the Render Loop
 
-## Lesson Content
+### - Initialization:
+        Set up necessary variables, buffers, and create the window.
 
-### 1. Framebuffer Basics
-- Definition and concept of a framebuffer.
-- Understanding the structure and purpose of a framebuffer in computer graphics.
+### - Exit Condition:
+        Check for conditions that signal the end of the application, such as a specific key press or window close event.
 
-### 2. Implementation with Rust
-- Creating a framebuffer using Rust's `Vec` data structure.
-- Implementing basic operations on the framebuffer, such as clearing and drawing pixels.
+### - Listening to User Input:
+        Handle user inputs like keyboard and mouse events.
 
-### 3. Using Minifb Library
-- Integrating the `minifb` library for window management.
-- Handling user input and updating the framebuffer accordingly.
+### - Clearing the Buffer:
+        Clear the buffer to prepare it for the new frame's pixel data.
 
-### 4. Practical Exercises
-- Drawing simple shapes and patterns using the framebuffer.
-- Experimenting with different colors and pixel manipulation techniques.
+### - Drawing Phase:
+        Update the buffer with new pixel data to be rendered.
 
+### - Update the Window:
+        Send the buffer data to the window for display.
+
+### - Calculate Frame Rate:
+        Track and display the frame rate (FPS) for performance monitoring.
+
+## Step-by-Step Guide
+
+### 1. Initialization
+
+    Create a buffer to store pixel data.
+    Create a window using a window management library (e.g., minifb).
+
+### 2. Exit Condition
+
+    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
+
+### 3. Listening to User Input
+
+    Poll for user input (keyboard or mouse events) and handle accordingly.
+
+### 4. Clearing the Buffer
+
+    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
+
+### 5. Drawing Phase
+
+    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
+
+### 6. Update the Window
+
+    Render the contents of the buffer to the window, making the new frame visible on the screen.
+
+### 7. Calculate Frame Rate
+
+    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
+
+This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
