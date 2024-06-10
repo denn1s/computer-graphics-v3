@@ -1,7 +1,13 @@
-
+use nalgebra_glm::Vec3;
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
+
 mod framebuffer;
+mod line;
+mod triangle;
+
+use framebuffer::Framebuffer;
+use triangle::Triangle;
 
 fn main() {
   let window_width = 800;
@@ -12,7 +18,7 @@ fn main() {
 
   let frame_delay = Duration::from_millis(16);
 
-  let mut framebuffer = framebuffer::Framebuffer::new(framebuffer_width, framebuffer_height);
+  let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
   let mut window = Window::new(
     "Rust Graphics - Framebuffer Example",
@@ -23,8 +29,6 @@ fn main() {
 
   framebuffer.set_background_color(0x333355);
 
-  let mut x = 1 as i32;
-  let mut speed = 1 as i32;
 
   while window.is_open() {
     // listen to inputs
@@ -32,21 +36,15 @@ fn main() {
       break;
     }
 
-    // prepare variables for rendering
-    if x as usize == framebuffer_width {
-      speed = -1;
-    }
-    if x == 0 {
-      speed = 1;
-    }
-    x += speed;
-
     // Clear the framebuffer
     framebuffer.clear();
 
     // Draw some points
     framebuffer.set_current_color(0xFFDDDD);
-    framebuffer.point(x as usize, 40);
+    let v1 = Vec3::new(20.0, 10.0, 0.0);
+    let v2 = Vec3::new(60.0, 50.0, 0.0);
+    let v3 = Vec3::new(10.0, 50.0, 0.0);
+    framebuffer.triangle(v1, v2, v3);
 
     // Update the window with the framebuffer contents
     window
