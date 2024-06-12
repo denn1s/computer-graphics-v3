@@ -1,66 +1,35 @@
-# Lesson 3: Understanding the Main Render Loop
+# Lesson 4: Drawing Your First Triangle
 
-In this lesson, we will dive into the core of real-time graphics: the main render loop. We will break down its components and understand how each part works together to create smooth, responsive graphics applications.
+In this lesson, we will be drawing triangles on the screen.
 
 ## Key Definitions
 
-    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
-    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
-    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
-    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
+* **Triangle:** A polygon with three edges and three vertices, forming the simplest possible polygon.
+* **Vertex:** A point in 2D or 3D space, used to define the corners of a polygon.
+* **Primitive:** The basic shape used to construct more complex graphics. In computer graphics, triangles are the most commonly used primitive.
+* **Rasterization:** The process of converting vector graphics (like triangles) into pixels on the screen.
+* **Fragment:** A potential pixel in rasterized graphics, containing data needed to compute the final color and depth.
 
-## Main Parts of the Render Loop
+## Why Triangles?
 
-### - Initialization:
-        Set up necessary variables, buffers, and create the window.
+Triangles are the simplest polygon that can define a surface in both 2D and 3D space, making them highly efficient for computer graphics. Here are a few reasons why triangles are preferred:
 
-### - Exit Condition:
-        Check for conditions that signal the end of the application, such as a specific key press or window close event.
+- **Simplicity:** With only three vertices, a triangle is the simplest shape that can define a flat surface, ensuring that any other polygon can be broken down into triangles.
+- **Stability:** Triangles are always flat (planar) in 3D space, which avoids issues like concavity or deformation that can occur with more complex polygons.
+- **Performance:** Modern GPUs are optimized for triangle processing, making rendering faster and more efficient.
+- **Versatility:** Any 3D shape can be approximated by a mesh of triangles, allowing for complex models and detailed surfaces.
 
-### - Listening to User Input:
-        Handle user inputs like keyboard and mouse events.
+## Main Steps to Draw a Triangle
 
-### - Clearing the Buffer:
-        Clear the buffer to prepare it for the new frame's pixel data.
+### - Vertex Specification:
+        Define the vertices of the triangle in either 2D or 3D space.
 
-### - Drawing Phase:
-        Update the buffer with new pixel data to be rendered.
+### - Buffer Setup:
+        Create and configure a buffer to store vertex data and manage graphics memory.
 
-### - Update the Window:
-        Send the buffer data to the window for display.
+### - Drawing Command:
+        Issue a command to draw the triangle using the specified vertices.
 
-### - Calculate Frame Rate:
-        Track and display the frame rate (FPS) for performance monitoring.
+### - Rendering Pipeline:
+        Transform and rasterize the triangle, converting vertex data to fragments on the screen.
 
-## Step-by-Step Guide
-
-### 1. Initialization
-
-    Create a buffer to store pixel data.
-    Create a window using a window management library (e.g., minifb).
-
-### 2. Exit Condition
-
-    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
-
-### 3. Listening to User Input
-
-    Poll for user input (keyboard or mouse events) and handle accordingly.
-
-### 4. Clearing the Buffer
-
-    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
-
-### 5. Drawing Phase
-
-    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
-
-### 6. Update the Window
-
-    Render the contents of the buffer to the window, making the new frame visible on the screen.
-
-### 7. Calculate Frame Rate
-
-    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
-
-This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
