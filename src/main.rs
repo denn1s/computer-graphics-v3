@@ -4,16 +4,33 @@ use std::time::Duration;
 use std::f32::consts::PI;
 
 mod framebuffer;
+mod triangle;
 mod line;
 
 use framebuffer::Framebuffer;
-use line::Line;
+use triangle::Triangle;
 
-fn square(framebuffer: &mut Framebuffer, v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3) {
-    framebuffer.line(v1, v2);
-    framebuffer.line(v2, v3);
-    framebuffer.line(v3, v4);
-    framebuffer.line(v4, v1);
+fn render_square(
+    framebuffer: &mut Framebuffer,
+    start: Vec3,
+    size: f32,
+    translation: Vec3,
+    scale: f32,
+    rotation: f32,
+) {
+    let v1 = start;
+    let v2 = Vec3::new(start.x + size, start.y, start.z);
+    let v3 = Vec3::new(start.x + size, start.y + size, start.z);
+    let v4 = Vec3::new(start.x, start.y + size, start.z);
+    let center = Vec3::new(start.x + size / 2.0, start.y + size / 2.0, start.z);
+
+    let t1 = transform_using_matrix2(v1, translation, scale, rotation, center);
+    let t2 = transform_using_matrix2(v2, translation, scale, rotation, center);
+    let t3 = transform_using_matrix2(v3, translation, scale, rotation, center);
+    let t4 = transform_using_matrix2(v4, translation, scale, rotation, center);
+
+    framebuffer.triangle(t1, t2, t4);
+    framebuffer.triangle(t2, t3, t4);
 }
 
 fn transform(vertex: Vec3, translation: Vec3, scale: f32) -> Vec3 {
@@ -34,8 +51,7 @@ fn transform_using_matrix(vertex: Vec3, translation: Vec3, scale: f32) -> Vec3 {
     transform_matrix * vertex
 }
 
-fn transform_using_matrix2(vertex: Vec3, translation: Vec3, scale: f32, rotation: f32) -> Vec3 {
-    let center = Vec3::new(40.0, 30.0, 1.0);
+fn transform_using_matrix2(vertex: Vec3, translation: Vec3, scale: f32, rotation: f32, center: Vec3) -> Vec3 {
     let move_to_center = Mat3::new(
         1.0,  0.0, -center.x,
         0.0,  1.0, -center.y,
@@ -132,26 +148,8 @@ fn main() {
 
         // Draw some points
         framebuffer.set_current_color(0xFFDDDD);
-        let s1 = Vec3::new(30.0, 20.0, 1.0);
-        let s2 = Vec3::new(50.0, 20.0, 1.0);
-        let s3 = Vec3::new(50.0, 40.0, 1.0);
-        let s4 = Vec3::new(30.0, 40.0, 1.0);
-
-        // Make some transformations 
-        // let t1 = transform(s1, translation, scale);
-        // let t2 = transform(s2, translation, scale);
-        // let t3 = transform(s3, translation, scale);
-        // let t4 = transform(s4, translation, scale);
-        // let t1 = transform_using_matrix(s1, translation, scale);
-        // let t2 = transform_using_matrix(s2, translation, scale);
-        // let t3 = transform_using_matrix(s3, translation, scale);
-        // let t4 = transform_using_matrix(s4, translation, scale);
-        let t1 = transform_using_matrix2(s1, translation, scale, rotation);
-        let t2 = transform_using_matrix2(s2, translation, scale, rotation);
-        let t3 = transform_using_matrix2(s3, translation, scale, rotation);
-        let t4 = transform_using_matrix2(s4, translation, scale, rotation);
-
-        square(&mut framebuffer, t1, t2, t3, t4);
+        let vertex = Vec3::new(30.0, 20.0, 1.0);
+        render_square(&mut framebuffer, vertex, 10.0, translation, scale, rotation);
 
         // Update the window with the framebuffer contents
         window
