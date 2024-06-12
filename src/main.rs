@@ -31,16 +31,7 @@ fn transform_using_matrix(vertex: Vec3, translation: Vec3, scale: f32) -> Vec3 {
         0.0,   0.0,   1.0,
     );
 
-    // transform_matrix * vertex
-
-    let homogeneous_vertex = Vec3::new(vertex.x, vertex.y, 1.0);
-    let homogeneous_vertex_transformed = transform_matrix * homogeneous_vertex;
-    
-    Vec3::new(
-        homogeneous_vertex_transformed.x,
-        homogeneous_vertex_transformed.y,
-        vertex.z,
-    )
+    transform_matrix * vertex
 }
 
 fn transform_using_matrix2(vertex: Vec3, translation: Vec3, scale: f32, rotation: f32) -> Vec3 {
