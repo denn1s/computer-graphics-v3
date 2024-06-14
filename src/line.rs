@@ -8,27 +8,41 @@ pub trait Line {
 
 impl Line for Framebuffer {
     fn line(&mut self, start: Vec3, end: Vec3) {
-        let dx = (end.x as i32 - start.x as i32).abs();
-        let dy = -(end.y as i32 - start.y as i32).abs();
-        let sx = if start.x < end.x { 1 } else { -1 };
-        let sy = if start.y < end.y { 1 } else { -1 };
-        let mut err = dx + dy;
-        let mut current = start.map(|x| x as i32);
+        let mut x0 = start.x as i32;
+        let mut y0 = start.y as i32;
+        let x1 = end.x as i32;
+        let y1 = end.y as i32;
+
+        // Determine the deltas
+        let dx = (x1 - x0).abs();
+        let dy = (y1 - y0).abs();
+
+        // Determine the direction of the increment
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+
+        let mut err = if dx > dy { dx / 2 } else { -dy / 2 };
 
         loop {
-            self.point(current.x as usize, current.y as usize);
-            if current == end.map(|x| x as i32) {
-                break;
+            // Draw the current point
+            self.point(x0 as usize, y0 as usize);
+
+            // Check if the end point has been reached
+            if x0 == x1 && y0 == y1 { break; }
+
+            // Calculate error
+            let e2 = err;
+            
+            // Adjust error and coordinates based on the dominant direction
+            if e2 > -dx {
+                err -= dy;
+                x0 += sx;
             }
-            let e2 = 2 * err;
-            if e2 >= dy {
-                err += dy;
-                current.x += sx;
-            }
-            if e2 <= dx {
+            if e2 < dy {
                 err += dx;
-                current.y += sy;
+                y0 += sy;
             }
         }
     }
 }
+
