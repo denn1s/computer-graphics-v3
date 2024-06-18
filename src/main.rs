@@ -1,34 +1,20 @@
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 mod framebuffer;
 use framebuffer::Framebuffer;
+mod maze;
+use maze::load_maze;
 
-fn load_maze(filename: &str) -> Vec<Vec<char>> {
-    let file = File::open(filename).unwrap();
-    let reader = BufReader::new(file);
-
-    reader
-        .lines()
-        .map(|line| line.unwrap().chars().collect())
-        .collect()
-}
-
-fn draw_cell(framebuffer: &mut Framebuffer, x: usize, y: usize, block_size: usize, cell: char) {
+fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
   if cell == ' ' {
     return;
   }
 
-  for x in x..x + block_size {
-    for y in y..y + block_size {
-      match cell {
-        '+' | '-' | '|' => {
-          framebuffer.set_current_color(0xFFDDDD);
-          framebuffer.point(x, y);
-        },
-        _ => (),
-      }
+  framebuffer.set_current_color(0xFFDDDD);
+
+  for x in xo..xo + block_size {
+    for y in yo..yo + block_size {
+      framebuffer.point(x, y);
     }
   } 
 }
@@ -39,9 +25,7 @@ fn render(framebuffer: &mut Framebuffer) {
 
   for row in 0..maze.len() {
     for col in 0..maze[row].len() {
-      let x = col * block_size;
-      let y = row * block_size;
-      draw_cell(framebuffer, x, y, block_size, maze[row][col]);
+      draw_cell(framebuffer, col * block_size, row * block_size, block_size, maze[row][col]);
     }
   } 
 }
