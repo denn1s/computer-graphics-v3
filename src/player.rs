@@ -17,6 +17,10 @@ pub fn process_events(window: &Window, player: &mut Player) {
   if window.is_key_down(Key::Right) {
     player.a -= ROTATION_SPEED;
   }
+  if window.is_key_down(Key::Down) {
+    player.x = (player.x as f32 - MOVE_SPEED * player.a.cos()) as usize;
+    player.y = (player.y as f32 - MOVE_SPEED * player.a.sin()) as usize;
+  }
   if window.is_key_down(Key::Up) {
     player.x = (player.x as f32 + MOVE_SPEED * player.a.cos()) as usize;
     player.y = (player.y as f32 + MOVE_SPEED * player.a.sin()) as usize;
