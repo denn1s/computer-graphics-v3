@@ -31,18 +31,6 @@ fn cell_to_color(cell: char) -> u32 {
   }
 }
 
-fn draw_stake(framebuffer: &mut Framebuffer, x: usize, h: f32, cell: char) {
-  let color = cell_to_color(cell);
-  framebuffer.set_current_color(color);
-
-  let start = (450.0 / 2.0 - h / 2.0).floor() as usize;
-  let finish = (450.0 / 2.0 + h / 2.0).ceil() as usize;
-  
-  for y in start..finish {
-    framebuffer.point(x, y);
-  }
-}
-
 fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
   if cell == ' ' {
     return;
@@ -58,7 +46,7 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
   } 
 }
 
-fn render_2D(framebuffer: &mut Framebuffer, player: &Player) {
+fn render2d(framebuffer: &mut Framebuffer, player: &Player) {
   let maze = load_maze("./maze.txt");
   let block_size = 100; 
 
@@ -82,7 +70,8 @@ fn render_2D(framebuffer: &mut Framebuffer, player: &Player) {
   }
 }
 
-fn render_3D(framebuffer: &mut Framebuffer, player: &Player) {
+fn render3d(framebuffer: &mut Framebuffer, player: &Player) {
+  // not yet implemented
 }
 
 
@@ -133,9 +122,9 @@ fn main() {
 
     // Draw some stuff
     if mode == "2D" {
-      render_2D(&mut framebuffer, &player);
+      render2d(&mut framebuffer, &player);
     } else {
-      render_3D(&mut framebuffer, &player);
+      render3d(&mut framebuffer, &player);
     }
 
     // Update the window with the framebuffer contents

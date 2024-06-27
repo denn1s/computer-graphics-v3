@@ -1,12 +1,7 @@
 use crate::framebuffer::Framebuffer;
 use crate::player::Player;
 
-pub struct Intersect {
-  pub distance: f32,
-  pub impact: char
-}
-
-pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &Player, a: f32, block_size: usize) -> Intersect{
+pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &Player, a: f32, block_size: usize) {
   let mut d = 0.0;
 
   framebuffer.set_current_color(0xFFDDDD);
@@ -21,10 +16,7 @@ pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &P
     let j = y / block_size;
 
     if maze[j][i] != ' ' {
-      return Intersect{
-        distance: d, 
-        impact: maze[j][i]
-      };
+      return;
     }
 
     framebuffer.point(x, y);
