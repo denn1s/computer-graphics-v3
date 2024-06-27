@@ -1,6 +1,7 @@
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
-use std::f64::consts::PI;
+use std::f32::consts::PI;
+use nalgebra_glm::{Vec2};
 mod framebuffer;
 use framebuffer::Framebuffer;
 mod maze;
@@ -30,7 +31,7 @@ fn cell_to_color(cell: char) -> u32 {
   }
 }
 
-fn draw_stake(framebuffer: &mut Framebuffer, x: usize, h: f64, cell: char) {
+fn draw_stake(framebuffer: &mut Framebuffer, x: usize, h: f32, cell: char) {
   let color = cell_to_color(cell);
   framebuffer.set_current_color(color);
 
@@ -57,9 +58,9 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
   } 
 }
 
-fn render(framebuffer: &mut Framebuffer, player: &Player) {
+fn render_2D(framebuffer: &mut Framebuffer, player: &Player) {
   let maze = load_maze("./maze.txt");
-  let block_size = 50; 
+  let block_size = 100; 
 
   // draw the minimap
   for row in 0..maze.len() {
@@ -70,28 +71,27 @@ fn render(framebuffer: &mut Framebuffer, player: &Player) {
 
   // draw the player
   framebuffer.set_current_color(0xFFDDDD);
-  framebuffer.point(player.x, player.y);
+  framebuffer.point(player.pos.x as usize, player.pos.y as usize);
 
   // draw what the player sees
-  for i in 0..650 {
-    let a = player.a - (player.fov / 2.0) + (player.fov * (i as f64 / 650.0));
-    let intersect = cast_ray(framebuffer, &maze, player.x, player.y, a, block_size);
-    let x = 650 + i; 
-    // let cosine = 1.0 as f64;
-    let cosine = (player.a - a).cos() as f64;
-    let d = intersect.distance * (framebuffer.width as f64 / framebuffer.height as f64) * cosine;
-    let h = (450.0 / d) * 30.0;
-
-    draw_stake(framebuffer, x, h, intersect.impact);
+  let num_rays = 5;
+  for i in 0..num_rays {
+    let current_ray = i as f32 / num_rays as f32; // current ray divided by total rays
+    let a = player.a - (player.fov / 2.0) + (player.fov * current_ray);
+    cast_ray(framebuffer, &maze, &player, a, block_size);
   }
 }
 
+fn render_3D(framebuffer: &mut Framebuffer, player: &Player) {
+}
+
+
 fn main() {
-  let window_width = 2600;
+  let window_width = 1300;
   let window_height = 900;
 
   let framebuffer_width = 1300;
-  let framebuffer_height = 450;
+  let framebuffer_height = 900;
 
   let frame_delay = Duration::from_millis(0);
 
@@ -111,16 +111,20 @@ fn main() {
   // initialize values
   framebuffer.set_background_color(0x333355);
   let mut player = Player {
-    x: 115,
-    y: 129,
-    a: 0.0,
+    pos: Vec2::new(150.0, 150.0),
+    a: PI / 3.0,
     fov: PI / 3.0,
   };
+
+  let mut mode = "2D";
 
   while window.is_open() {
     // listen to inputs
     if window.is_key_down(Key::Escape) {
       break;
+    }
+    if window.is_key_down(Key::M) {
+      mode = if mode == "2D" { "3D" } else { "2D" };
     }
     process_events(&window, &mut player);
 
@@ -128,7 +132,11 @@ fn main() {
     framebuffer.clear();
 
     // Draw some stuff
-    render(&mut framebuffer, &player);
+    if mode == "2D" {
+      render_2D(&mut framebuffer, &player);
+    } else {
+      render_3D(&mut framebuffer, &player);
+    }
 
     // Update the window with the framebuffer contents
     window
@@ -138,3 +146,6 @@ fn main() {
     std::thread::sleep(frame_delay);
   }
 }
+
+
+
