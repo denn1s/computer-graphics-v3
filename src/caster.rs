@@ -1,24 +1,30 @@
 use crate::framebuffer::Framebuffer;
+use crate::player::Player;
 
-pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, ox: usize, oy: usize, a: f32, block_size: usize) {
-  let mut c = 0 as f32;
+pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &Player, block_size: usize) {
+  let mut d = 0.0;
+
+  framebuffer.set_current_color(0xFFDDDD);
 
   loop {
-    // todo: simplify this casting logic
-    let x = (ox as f32 + c * a.cos()) as usize;
-    let y = (oy as f32 + c * a.sin()) as usize;
+    let cos = d * player.a.cos();
+    let sin = d * player.a.sin();
+    let x = (player.pos.x + cos) as usize;
+    let y = (player.pos.y + sin) as usize;
 
+    // convert pixels to a position in the maze
     let i = x / block_size;
     let j = y / block_size;
 
+    // if the current item is not a space,
+    // we have hit a wall and we stop
     if maze[j][i] != ' ' {
       break;
     }
 
-    framebuffer.set_current_color(0xFFDDDD);
     framebuffer.point(x, y);
 
-    c += 10.0;
+    d += 10.0;
   }
 }
 

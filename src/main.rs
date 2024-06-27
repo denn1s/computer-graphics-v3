@@ -1,6 +1,7 @@
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
+use nalgebra_glm::{Vec2};
 mod framebuffer;
 use framebuffer::Framebuffer;
 mod maze;
@@ -37,10 +38,10 @@ fn render(framebuffer: &mut Framebuffer, player: &Player) {
 
   // draw the player
   framebuffer.set_current_color(0xFFDDDD);
-  framebuffer.point(player.x, player.y);
+  framebuffer.point(player.pos.x as usize, player.pos.y as usize);
 
   // draw what the player sees
-  cast_ray(framebuffer, &maze, player.x, player.y, player.a, block_size);
+  cast_ray(framebuffer, &maze, &player, block_size);
 }
 
 fn main() {
@@ -68,8 +69,7 @@ fn main() {
   // initialize values
   framebuffer.set_background_color(0x333355);
   let mut player = Player {
-    x: 150,
-    y: 150,
+    pos: Vec2::new(150.0, 150.0),
     a: PI / 3.0,
   };
 
