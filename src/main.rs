@@ -6,20 +6,27 @@ mod framebuffer;
 mod ray_intersect;
 mod sphere; 
 mod color;
-mod intersect;
 
 use framebuffer::Framebuffer;
-use ray_intersect::RayIntersect;
 use sphere::Sphere;
 use color::Color;
+use ray_intersect::{Intersect, RayIntersect, Material};
 
 pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Color {
+    let mut intersect = Intersect::empty();
+
     for object in objects {
-        if object.ray_intersect(ray_origin, ray_direction) {
-            return Color::new(157, 165, 189);
-        }
+        intersect = object.ray_intersect(ray_origin, ray_direction)
     }
-    Color::new(4, 12, 36)
+
+    if !intersect.is_intersecting {
+        // return default sky box color
+        return Color::new(4, 12, 36);
+    }
+    
+    let diffuse = intersect.material.diffuse;
+
+    diffuse
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere]) {
@@ -72,6 +79,9 @@ fn main() {
         Sphere {
             center: Vec3::new(2.0, 0.0, -5.0),
             radius: 1.0,
+            material: Material{
+                diffuse: Color::new(135, 206, 235)
+            }
         },
     ];
 

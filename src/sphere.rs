@@ -1,7 +1,5 @@
 use nalgebra_glm::{Vec3, dot};
-use crate::ray_intersect::RayIntersect;
-use crate::intersect::Intersect;
-use crate::material::Material;
+use crate::ray_intersect::{RayIntersect, Material, Intersect};
 
 pub struct Sphere {
     pub center: Vec3,
