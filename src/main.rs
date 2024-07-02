@@ -6,6 +6,7 @@ mod framebuffer;
 mod ray_intersect;
 mod sphere; 
 mod color;
+mod intersect;
 
 use framebuffer::Framebuffer;
 use ray_intersect::RayIntersect;

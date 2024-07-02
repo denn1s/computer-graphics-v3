@@ -1,41 +1,42 @@
 use nalgebra_glm::{Vec3, dot};
 use crate::ray_intersect::RayIntersect;
+use crate::intersect::Intersect;
+use crate::material::Material;
 
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
+    pub material: Material,
 }
 
 impl RayIntersect for Sphere {
-  fn ray_intersect(&self, ray_origin: &Vec3, ray_direction: &Vec3) -> bool {
-    // Vector from the ray origin to the center of the sphere
-    let oc = ray_origin - self.center;
+    fn ray_intersect(&self, ray_origin: &Vec3, ray_direction: &Vec3) -> Intersect {
+        // Vector from the ray origin to the center of the sphere
+        let oc = ray_origin - self.center;
 
-    // Coefficients for the quadratic equation
-    // a = dot(ray_direction, ray_direction)
-    // This is the dot product of the ray direction with itself, representing the squared length of the direction vector.
-    let a = dot(ray_direction, ray_direction);
+        // Coefficients for the quadratic equation
+        let a = dot(ray_direction, ray_direction);
+        let b = 2.0 * dot(&oc, ray_direction);
+        let c = dot(&oc, &oc) - self.radius * self.radius;
 
-    // b = 2.0 * dot(oc, ray_direction)
-    // This is twice the dot product of the vector oc and the ray direction.
-    // It represents the projection of oc onto the ray direction, scaled by 2.
-    let b = 2.0 * dot(&oc, ray_direction);
+        // Discriminant of the quadratic equation
+        let discriminant = b * b - 4.0 * a * c;
 
-    // c = dot(oc, oc) - radius^2
-    // This is the dot product of oc with itself minus the squared radius of the sphere.
-    // It represents the squared distance from the ray origin to the sphere center minus the squared radius.
-    let c = dot(&oc, &oc) - self.radius * self.radius;
+        if discriminant > 0.0 {
+            // Calculate the nearest point of intersection
+            let t = (-b - discriminant.sqrt()) / (2.0 * a);
+            if t > 0.0 {
+                // Compute intersection point, normal at the intersection, and distance from the ray origin
+                let point = ray_origin + ray_direction * t;
+                let normal = (point - self.center).normalize();
+                let distance = t;
 
-    // Discriminant of the quadratic equation
-    // discriminant = b^2 - 4ac
-    // The discriminant determines the number of solutions to the quadratic equation.
-    // If the discriminant is greater than zero, the ray intersects the sphere at two points.
-    // If the discriminant is zero, the ray is tangent to the sphere and intersects at one point.
-    // If the discriminant is less than zero, the ray does not intersect the sphere.
-    let discriminant = b * b - 4.0 * a * c;
+                return Intersect::new(point, normal, distance, self.material);
+            }
+        }
 
-    // The ray intersects the sphere if the discriminant is greater than zero
-    discriminant > 0.0
-  } 
+        // If no intersection, return an empty intersect
+        Intersect::empty()
+    }
 }
 
