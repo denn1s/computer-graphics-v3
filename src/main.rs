@@ -5,18 +5,20 @@ use std::time::Duration;
 mod framebuffer;
 mod ray_intersect;
 mod sphere; 
+mod color;
 
 use framebuffer::Framebuffer;
 use ray_intersect::RayIntersect;
 use sphere::Sphere;
+use color::Color;
 
-pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> u32 {
+pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Color {
     for object in objects {
         if object.ray_intersect(ray_origin, ray_direction) {
-            return 0xFFFFFF;
+            return Color::new(157, 165, 189);
         }
     }
-    0x1D2951
+    Color::new(4, 12, 36)
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere]) {
@@ -40,7 +42,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere]) {
             let pixel_color = cast_ray(&Vec3::new(0.0, 0.0, 0.0), &ray_direction, objects);
 
             // Draw the pixel on screen with the returned color
-            framebuffer.set_current_color(pixel_color);
+            framebuffer.set_current_color(pixel_color.to_hex());
             framebuffer.point(x, y);
         }
     }
