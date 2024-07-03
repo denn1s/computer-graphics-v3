@@ -14,9 +14,15 @@ use ray_intersect::{Intersect, RayIntersect, Material};
 
 pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Color {
     let mut intersect = Intersect::empty();
+    let mut zbuffer = f32::INFINITY;  // what is the closest element this ray has hit? 
 
     for object in objects {
-        intersect = object.ray_intersect(ray_origin, ray_direction)
+        let tmp = object.ray_intersect(ray_origin, ray_direction);
+        if tmp.is_intersecting && 
+            tmp.distance < zbuffer { // is this distance less than the previous?
+            zbuffer = intersect.distance;  // this is the closest
+            intersect = tmp;
+        }
     }
 
     if !intersect.is_intersecting {
@@ -75,13 +81,24 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
+    let rubber = Material {
+        diffuse: Color::new(80, 0, 0)
+    };
+
+    let ivory = Material {
+        diffuse: Color::new(100, 100, 80)
+    };
+
     let objects = [
+        Sphere {
+            center: Vec3::new(1.0, 0.0, -4.0),
+            radius: 1.0,
+            material: ivory,
+        },
         Sphere {
             center: Vec3::new(2.0, 0.0, -5.0),
             radius: 1.0,
-            material: Material{
-                diffuse: Color::new(135, 206, 235)
-            }
+            material: rubber
         },
     ];
 
