@@ -2,6 +2,8 @@ use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
 use nalgebra_glm::{Vec2};
+use once_cell::sync::Lazy;
+use std::sync::Arc;
 mod framebuffer;
 use framebuffer::Framebuffer;
 mod maze;
@@ -10,24 +12,22 @@ mod player;
 use player::{Player, process_events};
 mod caster;
 use caster::{cast_ray, Intersect};
+mod texture;
+use texture::Texture;
 
-fn cell_to_color(cell: char) -> u32 {
+static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall1.png")));
+static WALL2: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall2.png")));
+static WALL3: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall3.png")));
+static WALL4: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall4.png")));
+static WALL5: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall5.png")));
+
+fn cell_to_texture_color(cell: char, tx: u32, ty: u32) -> u32 {
   match cell {
-    '+' => {
-      return 0xDDFFFF;
-    },
-    '-' => {
-      return 0xFFDDFF;
-    },
-    '|' => {
-      return 0xFFFFDD;
-    },
-    'g' => {
-      return 0xFF0000;
-    },
-    _ => {
-      return 0xFFFFFF;
-    },
+    '+' => WALL4.get_pixel_color(tx, ty),
+    '-' => WALL2.get_pixel_color(tx, ty),
+    '|' => WALL1.get_pixel_color(tx, ty),
+    'g' => WALL5.get_pixel_color(tx, ty),
+    _ => WALL3.get_pixel_color(tx, ty),
   }
 }
 
@@ -35,9 +35,6 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
   if cell == ' ' {
     return;
   }
-
-  let color = cell_to_color(cell);
-  framebuffer.set_current_color(color);
 
   for x in xo..xo + block_size {
     for y in yo..yo + block_size {
@@ -75,10 +72,22 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player) {
   let block_size = 100; 
   let num_rays = framebuffer.width;
 
-  // let hw = framebuffer.width as f32 / 2.0;   // precalculated half width
-  let hh = framebuffer.height as f32 / 2.0;  // precalculated half height
+  // Precalculate half height of the framebuffer
+  let hh = framebuffer.height as f32 / 2.0;  
 
-  framebuffer.set_current_color(0xFFFFFF);
+  // draw the sky and the floor
+  for i in 0..framebuffer.width {
+    framebuffer.set_current_color(0x383838);
+    for j in 0..(framebuffer.height / 2) {
+      framebuffer.point(i, j);
+    }
+    framebuffer.set_current_color(0x717171);
+    for j in (framebuffer.height / 2)..framebuffer.height {
+      framebuffer.point(i, j);
+    }
+  }
+
+  framebuffer.set_current_color(0x717171);
 
   for i in 0..num_rays {
     let current_ray = i as f32 / num_rays as f32; // current ray divided by total rays
@@ -86,18 +95,28 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player) {
     let intersect = cast_ray(framebuffer, &maze, &player, a, block_size, false);
 
     // Calculate the height of the stake
-    let distance_to_wall = intersect.distance;// how far is this wall from the player
+    let distance_to_wall = intersect.distance; // how far is this wall from the player
     let distance_to_projection_plane = 70.0; // how far is the "player" from the "camera"
-    // this ratio doesn't really matter as long as it is a function of distance
+    // Calculate the height of the stake (wall slice) on the screen
     let stake_height = (hh / distance_to_wall) * distance_to_projection_plane;
 
     // Calculate the position to draw the stake
     let stake_top = (hh - (stake_height / 2.0)) as usize;
     let stake_bottom = (hh + (stake_height / 2.0)) as usize;
 
-    // Draw the stake directly in the framebuffer
+    // Calculate texture coordinates
+    // Assume the wall texture width is 128 pixels
+    //
+
     for y in stake_top..stake_bottom {
-      framebuffer.point(i, y); // Assuming white color for the stake
+      // Calculate the vertical offset in the texture
+      let ty = (y as f32 - stake_top as f32) / (stake_bottom as f32 - stake_top as f32) * 128.0; // texture
+      // size
+
+      // Get color from the texture
+      let color = cell_to_texture_color(intersect.impact, intersect.tx as u32, ty as u32);
+      framebuffer.set_current_color(color);
+      framebuffer.point(i, y); // Draw the point in the framebuffer
     }
   }
 }
