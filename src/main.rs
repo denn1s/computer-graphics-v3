@@ -22,7 +22,8 @@ static WALL2: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wa
 static WALL3: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall3.png")));
 static WALL4: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall4.png")));
 static WALL5: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/wall5.png")));
-const TRANSPARENT_COLOR: u32 = 9961608;
+static UI_SPRITE: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/player.png")));
+const TRANSPARENT_COLOR: u32 = 0x980088;
 
 fn cell_to_texture_color(cell: char, tx: u32, ty: u32) -> u32 {
   match cell {
@@ -54,7 +55,7 @@ fn draw_sprite(framebuffer: &mut Framebuffer, player: &Player, enemy: &Enemy, z_
   }
 
   let sprite_d = ((player.pos.x - enemy.pos.x).powi(2) + (player.pos.y - enemy.pos.y).powi(2)).sqrt();
-  
+
   if sprite_d < 50.0 {
     return;
   }
@@ -86,6 +87,23 @@ fn draw_sprite(framebuffer: &mut Framebuffer, player: &Player, enemy: &Enemy, z_
       }
       // Update the z-buffer for this column
       z_buffer[x] = sprite_d;
+    }
+  }
+}
+
+fn render_ui(framebuffer: &mut Framebuffer) {
+  let ui_width = 512; // Adjust this to match your UI sprite width
+  let ui_height = 512; // Adjust this to match your UI sprite height
+  let ui_x = ((framebuffer.width as f32 / 2.0) - (ui_width as f32 / 2.0)) as usize; // X position of the UI sprite
+  let ui_y = (framebuffer.height - ui_height) as usize; // Y position of the UI sprite
+
+  for y in 0..ui_height {
+    for x in 0..ui_width {
+      let color = UI_SPRITE.get_pixel_color(x as u32, y as u32);
+      if color != TRANSPARENT_COLOR {
+        framebuffer.set_current_color(color);
+        framebuffer.point(ui_x + x, ui_y + y);
+      }
     }
   }
 }
@@ -223,6 +241,7 @@ fn main() {
       let mut z_buffer = vec![f32::INFINITY; framebuffer.width];
       render3d(&mut framebuffer, &player, &mut z_buffer);
       renderEnemies(&mut framebuffer, &player, &mut z_buffer);
+      render_ui(&mut framebuffer);
     }
 
     // Update the window with the framebuffer contents
