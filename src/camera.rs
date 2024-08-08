@@ -40,10 +40,11 @@ impl Camera {
         let current_yaw = radius_vector.z.atan2(radius_vector.x);
 
         // Calculate current pitch (rotation around X-axis)
-        // asin(-y / radius) gives us the angle from the XZ plane
+        // xz here refers to the proyection of the radius over the x axis
+        let radius_xz = (radius_vector.x * radius_vector.x + radius_vector.z * radius_vector.z).sqrt();
         // We use -y because positive pitch is when we look up (negative y in our coordinate system)
         // Range: [-π/2, π/2], where 0 is horizontal, π/2 is looking straight up
-        let current_pitch = (-radius_vector.y).atan2((radius_vector.x * radius_vector.x + radius_vector.z * radius_vector.z).sqrt());
+        let current_pitch = (-radius_vector.y).atan2(radius_xz);
 
         // Apply delta rotations
         // Keep yaw in range [0, 2π] for consistency
@@ -63,12 +64,6 @@ impl Camera {
             radius * new_yaw.sin() * new_pitch.cos()
         );
 
-        // Check for NaN and update only if the result is valid
-        if new_eye.x.is_finite() && new_eye.y.is_finite() && new_eye.z.is_finite() {
-            self.eye = new_eye;
-        } else {
-            println!("Warning: Invalid camera position calculated. Camera not updated.");
-            // Optionally, you could reset the camera to a known good state here
-        }
+        self.eye = new_eye;
     }
 }
