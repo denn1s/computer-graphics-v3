@@ -42,6 +42,8 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let aspect_ratio = width / height;
+    let fov = PI/3.0;
+    let perspective_scale = (fov * 0.5).tan();
 
     // random number generator
     // let mut rng = rand::thread_rng();
@@ -57,8 +59,9 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             let screen_x = (2.0 * x as f32) / width - 1.0;
             let screen_y = -(2.0 * y as f32) / height + 1.0;
 
-            // Adjust for aspect ratio
-            let screen_x = screen_x * aspect_ratio;
+            // Adjust for aspect ratio and perspective 
+            let screen_x = screen_x * aspect_ratio * perspective_scale;
+            let screen_y = screen_y * perspective_scale;
 
             // Calculate the direction of the ray for this pixel
             let ray_direction = normalize(&Vec3::new(screen_x, screen_y, -1.0));
