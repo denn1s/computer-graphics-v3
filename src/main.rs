@@ -8,14 +8,18 @@ mod ray_intersect;
 mod sphere; 
 mod color;
 mod camera;
+mod light;
+mod material;
 
 use framebuffer::Framebuffer;
 use sphere::Sphere;
 use color::Color;
-use ray_intersect::{Intersect, RayIntersect, Material};
+use ray_intersect::{Intersect, RayIntersect};
 use camera::Camera;
+use light::Light;
+use material::Material;
 
-pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Color {
+pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: &Light) -> Color {
     let mut intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;  // what is the closest element this ray has hit? 
 
@@ -38,7 +42,7 @@ pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> 
     diffuse
 }
 
-pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera) {
+pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let aspect_ratio = width / height;
@@ -70,7 +74,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             let rotated_direction = camera.basis_change(&ray_direction);
 
             // Cast the ray and get the pixel color
-            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects);
+            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light);
 
             // Draw the pixel on screen with the returned color
             framebuffer.set_current_color(pixel_color.to_hex());
@@ -125,7 +129,13 @@ fn main() {
         Vec3::new(0.0, 0.0, 0.0),  // center: Point the camera is looking at (origin)
         Vec3::new(0.0, 1.0, 0.0)   // up: World up vector
     );
-    let rotation_speed = PI/10.0;
+    let rotation_speed = PI/50.0;
+
+    let light = Light::new(
+        Vec3::new(5.0, 5.0, 5.0),
+        Color::new(255, 255, 255),
+        1.0
+    );
 
     while window.is_open() {
         // listen to inputs
@@ -148,7 +158,7 @@ fn main() {
         }
 
         // draw some points
-        render(&mut framebuffer, &objects, &camera);
+        render(&mut framebuffer, &objects, &camera, &light);
 
 
         // update the window with the framebuffer contents
