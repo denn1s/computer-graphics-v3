@@ -19,20 +19,55 @@ use camera::Camera;
 use light::Light;
 use material::Material;
 
+const SHADOW_BIAS: f32 = 1e-4;
+
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
 }
 
-pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: &Light) -> Color {
-    let mut intersect = Intersect::empty();
-    let mut zbuffer = f32::INFINITY;  // what is the closest element this ray has hit? 
+fn cast_shadow(
+    intersect: &Intersect,
+    light: &Light,
+    objects: &[Sphere],
+) -> f32 {
+    let light_dir = (light.position - intersect.point).normalize();
+    let light_distance = (light.position - intersect.point).magnitude();
+
+    let offset_normal = intersect.normal * SHADOW_BIAS;
+    let shadow_ray_origin = if light_dir.dot(&intersect.normal) < 0.0 {
+        intersect.point - offset_normal
+    } else {
+        intersect.point + offset_normal
+    };
+
+    let mut shadow_intensity = 0.0;
 
     for object in objects {
-        let tmp = object.ray_intersect(ray_origin, ray_direction);
-        if tmp.is_intersecting && 
-            tmp.distance < zbuffer { // is this distance less than the previous?
-            zbuffer = intersect.distance;  // this is the closest
-            intersect = tmp;
+        let shadow_intersect = object.ray_intersect(&shadow_ray_origin, &light_dir);
+        if shadow_intersect.is_intersecting && shadow_intersect.distance < light_distance {
+            let distance_ratio = shadow_intersect.distance / light_distance;
+            shadow_intensity = 1.0 - distance_ratio.powf(2.0).min(1.0);
+            break;
+        }
+    }
+
+    shadow_intensity
+}
+
+pub fn cast_ray(
+    ray_origin: &Vec3,
+    ray_direction: &Vec3,
+    objects: &[Sphere],
+    light: &Light,
+) -> Color {
+    let mut intersect = Intersect::empty();
+    let mut zbuffer = f32::INFINITY;
+
+    for object in objects {
+        let i = object.ray_intersect(ray_origin, ray_direction);
+        if i.is_intersecting && i.distance < zbuffer {
+            zbuffer = i.distance;
+            intersect = i;
         }
     }
 
@@ -40,17 +75,19 @@ pub fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], lig
         // return default sky box color
         return Color::new(4, 12, 36);
     }
-    
+
     let light_dir = (light.position - intersect.point).normalize();
     let view_dir = (ray_origin - intersect.point).normalize();
     let reflect_dir = reflect(&-light_dir, &intersect.normal);
 
+    let shadow_intensity = cast_shadow(&intersect, light, objects);
+    let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
     let diffuse_intensity = intersect.normal.dot(&light_dir).max(0.0).min(1.0);
-    let diffuse = intersect.material.diffuse * intersect.material.albedo[0] * diffuse_intensity * light.intensity;
+    let diffuse = intersect.material.diffuse * intersect.material.albedo[0] * diffuse_intensity * light_intensity;
 
     let specular_intensity = view_dir.dot(&reflect_dir).max(0.0).powf(intersect.material.specular);
-    let specular = light.color * intersect.material.albedo[1] * specular_intensity * light.intensity;
+    let specular = light.color * intersect.material.albedo[1] * specular_intensity * light_intensity;
 
     diffuse + specular
 }
@@ -128,19 +165,13 @@ fn main() {
     );
 
     let objects = [
-        Sphere {
-            center: Vec3::new(0.0, 0.0, 0.0),
-            radius: 1.0,
-            material: ivory,
-        },
-        Sphere {
-            center: Vec3::new(2.0, 0.0, -5.0),
-            radius: 0.5,
-            material: rubber
-        },
+        Sphere { center: Vec3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
+        Sphere { center: Vec3::new(0.0, 0.0, 1.5), radius: 0.5, material: ivory },
+        // Sphere { center: Vec3::new(1.0, 1.0, 3.0), radius: 0.7, material: rubber },
+        // Sphere { center: Vec3::new(-2.0, 2.0, -5.0), radius: 1.0, material: ivory },
     ];
 
-        // Initialize camera
+    // Initialize camera
     let mut camera = Camera::new(
         Vec3::new(0.0, 0.0, 5.0),  // eye: Initial camera position
         Vec3::new(0.0, 0.0, 0.0),  // center: Point the camera is looking at (origin)
@@ -149,7 +180,7 @@ fn main() {
     let rotation_speed = PI/50.0;
 
     let light = Light::new(
-        Vec3::new(5.0, 5.0, 5.0),
+        Vec3::new(0.0, 0.0, 5.0),
         Color::new(255, 255, 255),
         1.0
     );
