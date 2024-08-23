@@ -19,10 +19,20 @@ use camera::Camera;
 use light::Light;
 use material::Material;
 
-const SHADOW_BIAS: f32 = 1e-4;
+const ORIGIN_BIAS: f32 = 1e-4;
+const SKYBOX_COLOR: Color = Color::new(4, 12, 36);
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
+}
+
+fn offset_origin(intersect: &Intersect, direction: &Vec3) -> Vec3 {
+    let offset = intersect.normal * ORIGIN_BIAS;
+    if direction.dot(&intersect.normal) < 0.0 {
+        intersect.point - offset
+    } else {
+        intersect.point + offset
+    }
 }
 
 fn cast_shadow(
@@ -33,13 +43,7 @@ fn cast_shadow(
     let light_dir = (light.position - intersect.point).normalize();
     let light_distance = (light.position - intersect.point).magnitude();
 
-    let offset_normal = intersect.normal * SHADOW_BIAS;
-    let shadow_ray_origin = if light_dir.dot(&intersect.normal) < 0.0 {
-        intersect.point - offset_normal
-    } else {
-        intersect.point + offset_normal
-    };
-
+    let shadow_ray_origin = offset_origin(intersect, &light_dir);
     let mut shadow_intensity = 0.0;
 
     for object in objects {
@@ -59,7 +63,12 @@ pub fn cast_ray(
     ray_direction: &Vec3,
     objects: &[Sphere],
     light: &Light,
+    depth: u32,
 ) -> Color {
+    if depth > 3 {  // default recursion depth
+        return SKYBOX_COLOR; // Max recursion depth reached
+    }
+
     let mut intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
@@ -73,7 +82,7 @@ pub fn cast_ray(
 
     if !intersect.is_intersecting {
         // return default sky box color
-        return Color::new(4, 12, 36);
+        return SKYBOX_COLOR;
     }
 
     let light_dir = (light.position - intersect.point).normalize();
@@ -89,7 +98,14 @@ pub fn cast_ray(
     let specular_intensity = view_dir.dot(&reflect_dir).max(0.0).powf(intersect.material.specular);
     let specular = light.color * intersect.material.albedo[1] * specular_intensity * light_intensity;
 
-    diffuse + specular
+    let mut reflect_color = Color::black();
+    if intersect.material.albedo[2] > 0.0 {
+        let reflect_dir = reflect(&-ray_direction, &intersect.normal).normalize();
+        let reflect_origin = offset_origin(&intersect, &reflect_dir);
+        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
+    }
+
+    diffuse + specular + reflect_color
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -124,7 +140,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             let rotated_direction = camera.basis_change(&ray_direction);
 
             // Cast the ray and get the pixel color
-            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light);
+            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light, 0);
 
             // Draw the pixel on screen with the returned color
             framebuffer.set_current_color(pixel_color.to_hex());
@@ -155,19 +171,25 @@ fn main() {
     let rubber = Material::new(
         Color::new(80, 0, 0),
         1.0,
-        [0.9, 0.1],
+        [0.9, 0.1, 0.0],
     );
 
     let ivory = Material::new(
         Color::new(100, 100, 80),
         50.0,
-        [0.6, 0.3],
+        [0.6, 0.3, 0.0],
+    );
+
+    let mirror = Material::new(
+        Color::new(255, 255, 255),
+        1425.0,
+        [0.0, 10.0, 0.8],
     );
 
     let objects = [
         Sphere { center: Vec3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
-        Sphere { center: Vec3::new(0.0, 0.0, 1.5), radius: 0.5, material: ivory },
-        // Sphere { center: Vec3::new(1.0, 1.0, 3.0), radius: 0.7, material: rubber },
+        Sphere { center: Vec3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
+        Sphere { center: Vec3::new(-1.5, -1.5, 1.0), radius: 0.3, material: mirror },
         // Sphere { center: Vec3::new(-2.0, 2.0, -5.0), radius: 1.0, material: ivory },
     ];
 
@@ -180,7 +202,7 @@ fn main() {
     let rotation_speed = PI/50.0;
 
     let light = Light::new(
-        Vec3::new(0.0, 0.0, 5.0),
+        Vec3::new(-5.0, -5.0, 5.0),
         Color::new(255, 255, 255),
         1.0
     );
