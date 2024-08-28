@@ -100,13 +100,14 @@ pub fn cast_ray(
     let specular = light.color * intersect.material.albedo[1] * specular_intensity * light_intensity;
 
     let mut reflect_color = Color::black();
-    if intersect.material.albedo[2] > 0.0 {
+    let reflectivity = intersect.material.albedo[2];
+    if reflectivity > 0.0 {
         let reflect_dir = reflect(&-ray_direction, &intersect.normal).normalize();
         let reflect_origin = offset_origin(&intersect, &reflect_dir);
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
 
-    diffuse + specular + reflect_color
+    (diffuse + specular) * (1.0 - reflectivity) + (reflect_color * reflectivity)
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
