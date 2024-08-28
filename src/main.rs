@@ -20,11 +20,7 @@ use light::Light;
 use material::Material;
 
 const ORIGIN_BIAS: f32 = 1e-4;
-const SKYBOX_COLOR: Color = Color::new(4, 12, 36);
-
-fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
-    incident - 2.0 * incident.dot(normal) * normal
-}
+const SKYBOX_COLOR: Color = Color::new(68, 142, 228);
 
 fn offset_origin(intersect: &Intersect, direction: &Vec3) -> Vec3 {
     let offset = intersect.normal * ORIGIN_BIAS;
@@ -33,6 +29,10 @@ fn offset_origin(intersect: &Intersect, direction: &Vec3) -> Vec3 {
     } else {
         intersect.point + offset
     }
+}
+
+fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
+    incident - 2.0 * incident.dot(normal) * normal
 }
 
 fn cast_shadow(
@@ -63,7 +63,8 @@ pub fn cast_ray(
     ray_direction: &Vec3,
     objects: &[Sphere],
     light: &Light,
-    depth: u32,
+    depth: u32, // this value should initially be 0
+                // and should be increased by 1 in each recursion
 ) -> Color {
     if depth > 3 {  // default recursion depth
         return SKYBOX_COLOR; // Max recursion depth reached
@@ -189,7 +190,7 @@ fn main() {
     let objects = [
         Sphere { center: Vec3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
         Sphere { center: Vec3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
-        Sphere { center: Vec3::new(-1.5, -1.5, 1.0), radius: 0.3, material: mirror },
+        Sphere { center: Vec3::new(-0.3, 0.3, 1.5), radius: 0.3, material: mirror },
         // Sphere { center: Vec3::new(-2.0, 2.0, -5.0), radius: 1.0, material: ivory },
     ];
 
@@ -202,7 +203,7 @@ fn main() {
     let rotation_speed = PI/50.0;
 
     let light = Light::new(
-        Vec3::new(-5.0, -5.0, 5.0),
+        Vec3::new(1.0, -1.0, 5.0),
         Color::new(255, 255, 255),
         1.0
     );
