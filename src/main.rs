@@ -35,6 +35,33 @@ fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
 }
 
+fn refract(incident: &Vec3, normal: &Vec3, eta_t: f32) -> Vec3 {
+    let cosi = -incident.dot(normal).max(-1.0).min(1.0);
+    
+    let (n_cosi, eta, n_normal);
+
+    if cosi < 0.0 {
+        // Ray is entering the object
+        n_cosi = -cosi;
+        eta = 1.0 / eta_t;
+        n_normal = -normal;
+    } else {
+        // Ray is leaving the object
+        n_cosi = cosi;
+        eta = eta_t;  // Assuming it's going back into air with index 1.0
+        n_normal = *normal;
+    }
+    
+    let k = 1.0 - eta * eta * (1.0 - n_cosi * n_cosi);
+    
+    if k < 0.0 {
+        // Total internal reflection
+        reflect(incident, &n_normal)
+    } else {
+        eta * incident + (eta * n_cosi - k.sqrt()) * n_normal
+    }
+}
+
 fn cast_shadow(
     intersect: &Intersect,
     light: &Light,
@@ -107,7 +134,16 @@ pub fn cast_ray(
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
 
-    (diffuse + specular) * (1.0 - reflectivity) + (reflect_color * reflectivity)
+
+    let mut refract_color = Color::black();
+    let transparency = intersect.material.albedo[3];
+    if transparency > 0.0 {
+        let refract_dir = refract(&ray_direction, &intersect.normal, intersect.material.refractive_index);
+        let refract_origin = offset_origin(&intersect, &refract_dir);
+        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
+    }
+
+    (diffuse + specular) * (1.0 - reflectivity - transparency) + (reflect_color * reflectivity) + (refract_color * transparency)
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -173,25 +209,28 @@ fn main() {
     let rubber = Material::new(
         Color::new(80, 0, 0),
         1.0,
-        [0.9, 0.1, 0.0],
+        [0.9, 0.1, 0.0, 0.0],
+        0.0,
     );
 
     let ivory = Material::new(
         Color::new(100, 100, 80),
         50.0,
-        [0.6, 0.3, 0.0],
+        [0.6, 0.3, 0.6, 0.0],
+        0.0,
     );
 
-    let mirror = Material::new(
+    let glass = Material::new(
         Color::new(255, 255, 255),
         1425.0,
-        [0.0, 10.0, 0.8],
+        [0.0, 10.0, 0.5, 0.5],
+        0.3,
     );
 
     let objects = [
         Sphere { center: Vec3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
         Sphere { center: Vec3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
-        Sphere { center: Vec3::new(-0.3, 0.3, 1.5), radius: 0.3, material: mirror },
+        Sphere { center: Vec3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass },
         // Sphere { center: Vec3::new(-2.0, 2.0, -5.0), radius: 1.0, material: ivory },
     ];
 
