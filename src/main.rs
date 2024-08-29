@@ -88,7 +88,7 @@ pub fn cast_ray(
 
     let light_dir = (light.position - intersect.point).normalize();
     let view_dir = (ray_origin - intersect.point).normalize();
-    let reflect_dir = reflect(&-light_dir, &intersect.normal);
+    let reflect_dir = reflect(&-light_dir, &intersect.normal).normalize();
 
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
@@ -102,7 +102,7 @@ pub fn cast_ray(
     let mut reflect_color = Color::black();
     let reflectivity = intersect.material.albedo[2];
     if reflectivity > 0.0 {
-        let reflect_dir = reflect(&-ray_direction, &intersect.normal).normalize();
+        let reflect_dir = reflect(&ray_direction, &intersect.normal).normalize();
         let reflect_origin = offset_origin(&intersect, &reflect_dir);
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
