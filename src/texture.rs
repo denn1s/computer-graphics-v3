@@ -8,7 +8,7 @@ pub struct Texture {
   image: DynamicImage,
   pub width: usize,
   pub height: usize,
-  color_array: Vec<Vec<u32>>,
+  color_array: Vec<Color>,
 }
 
 impl Texture {
@@ -20,7 +20,7 @@ impl Texture {
       image: img,
       width,
       height,
-      color_array: vec![vec![0; height as usize]; width as usize],
+      color_array: vec![Color::black(); width * height],
     };
     texture.load_color_array();
     texture
@@ -30,11 +30,8 @@ impl Texture {
     for x in 0..self.width {
       for y in 0..self.height {
         let pixel = self.image.get_pixel(x as u32, y as u32).to_rgb();
-        let r = pixel[0];
-        let g = pixel[1];
-        let b = pixel[2];
-        let color = ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
-        self.color_array[x as usize][y as usize] = color;
+        let color = ((pixel[0] as u32) << 16) | ((pixel[1] as u32) << 8) | (pixel[2] as u32);
+        self.color_array[y * self.width + x] = Color::from_hex(color);
       }
     }
   }
@@ -43,7 +40,7 @@ impl Texture {
     if x >= self.width || y >= self.height {
       0xFF00FF
     } else {
-      self.color_array[x as usize][y as usize]
+      self.color_array[y * self.width + x].to_hex()
     }
   }
 
@@ -51,7 +48,7 @@ impl Texture {
     if x >= self.width || y >= self.height {
       Color::from_hex(0xFF00FF)
     } else {
-      Color::from_hex(self.color_array[x][y])
+      self.color_array[y * self.width + x]
     }
   }
 }
