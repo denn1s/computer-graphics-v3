@@ -10,6 +10,7 @@ mod color;
 mod camera;
 mod light;
 mod material;
+mod texture;
 
 use framebuffer::Framebuffer;
 use sphere::Sphere;
@@ -18,6 +19,7 @@ use ray_intersect::{Intersect, RayIntersect};
 use camera::Camera;
 use light::Light;
 use material::Material;
+use texture::Texture;
 
 const ORIGIN_BIAS: f32 = 1e-4;
 const SKYBOX_COLOR: Color = Color::new(68, 142, 228);
@@ -121,7 +123,8 @@ pub fn cast_ray(
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
     let diffuse_intensity = intersect.normal.dot(&light_dir).max(0.0).min(1.0);
-    let diffuse = intersect.material.diffuse * intersect.material.albedo[0] * diffuse_intensity * light_intensity;
+    let diffuse_color = intersect.material.get_diffuse_color(intersect.u, intersect.v);
+    let diffuse = diffuse_color * intersect.material.albedo[0] * diffuse_intensity * light_intensity;
 
     let specular_intensity = view_dir.dot(&reflect_dir).max(0.0).powf(intersect.material.specular);
     let specular = light.color * intersect.material.albedo[1] * specular_intensity * light_intensity;
@@ -206,11 +209,12 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    let rubber = Material::new(
-        Color::new(80, 0, 0),
+    let texture = Texture::new("assets/ball.png");
+    let rubber = Material::new_with_texture(
         1.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
+        texture,
     );
 
     let ivory = Material::new(
