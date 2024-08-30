@@ -15,6 +15,22 @@ impl Sphere {
         let v = 0.5 - (normalized.y.asin() / std::f32::consts::PI);
         (u, v)
     }
+
+    fn perturb_normal(&self, normal: &Vec3, tangent_normal: &Vec3) -> Vec3 {
+        // Create a local coordinate system
+        let tangent = if normal.x.abs() > normal.y.abs() {
+            Vec3::new(-normal.z, 0.0, normal.x).normalize()
+        } else {
+            Vec3::new(0.0, -normal.z, normal.y).normalize()
+        };
+        let bitangent = normal.cross(&tangent);
+
+        // Transform the tangent normal to world space
+        let perturbed_normal = tangent * tangent_normal.x + bitangent * tangent_normal.y + normal * tangent_normal.z;
+
+        let blend_factor = 0.2; // Adjust this value to control the strength of the normal map
+        (normal * (1.0 - blend_factor) + perturbed_normal * blend_factor).normalize()
+    }
 }
 
 impl RayIntersect for Sphere {
@@ -34,12 +50,16 @@ impl RayIntersect for Sphere {
             let t = (-b - discriminant.sqrt()) / (2.0 * a);
             if t > 0.0 {
                 let point = ray_origin + ray_direction * t;
-                let normal = (point - self.center).normalize();
+                let geometric_normal = (point - self.center).normalize();
                 let distance = t; 
-                let (mut u, mut v) = (0.0, 0.0);
-                if self.material.has_texture {
-                    (u, v) = self.get_uv(&point);
-                }
+                let (u, v) = self.get_uv(&point);
+
+                let normal = if self.material.has_normal_map {
+                    let tangent_normal = self.material.get_normal_from_map(u, v);
+                    self.perturb_normal(&geometric_normal, &tangent_normal)
+                } else {
+                    geometric_normal
+                };
 
                 return Intersect::new(point, normal, distance, self.material.clone(), u, v);
             }
