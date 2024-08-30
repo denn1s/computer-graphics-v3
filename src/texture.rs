@@ -36,6 +36,7 @@ impl Texture {
     }
   }
 
+  /*
   pub fn get_color_as_hex(&self, x: usize, y: usize) -> u32 {
     if x >= self.width || y >= self.height {
       0xFF00FF
@@ -43,6 +44,7 @@ impl Texture {
       self.color_array[y * self.width + x].to_hex()
     }
   }
+  */
 
   pub fn get_color(&self, x: usize, y: usize) -> Color {
     if x >= self.width || y >= self.height {

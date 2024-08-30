@@ -2,6 +2,7 @@ use nalgebra_glm::{Vec3, normalize};
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
+// use rand::{Rng};
 
 mod framebuffer;
 mod ray_intersect;
@@ -19,7 +20,6 @@ use ray_intersect::{Intersect, RayIntersect};
 use camera::Camera;
 use light::Light;
 use material::Material;
-use texture::Texture;
 
 const ORIGIN_BIAS: f32 = 1e-4;
 const SKYBOX_COLOR: Color = Color::new(68, 142, 228);
@@ -161,9 +161,8 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
 
     for y in 0..framebuffer.height {
         for x in 0..framebuffer.width {
-            // if rng.gen_range(0.0..1.0) < 0.3 {
-            //     // we skip 30% of the points
-            //     continue;
+            // if rng.gen_range(0.0..1.0) < 0.9 {
+            //      continue;
             // }
 
             // Map the pixel coordinate to screen space [-1, 1]
@@ -209,12 +208,17 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    let texture = Texture::new("assets/ball.png");
+    // let rubber = Material::new(
+    //     Color::new(255, 100, 80),
+    //     1.0,
+    //     [0.9, 0.1, 0.0, 0.0],
+    //     0.0,
+    // );
+
     let rubber = Material::new_with_texture(
         1.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
-        texture,
     );
 
     let ivory = Material::new(
@@ -272,9 +276,10 @@ fn main() {
             camera.orbit(0.0, rotation_speed);
         }
 
-        // draw some points
-        render(&mut framebuffer, &objects, &camera, &light);
-
+        if camera.is_changed() {
+            // Render the scene
+            render(&mut framebuffer, &objects, &camera, &light);
+        }
 
         // update the window with the framebuffer contents
         window
