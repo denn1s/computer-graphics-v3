@@ -15,7 +15,7 @@ impl Camera {
             center,
             up,
             has_changed: true,
-       }
+        }
     }
 
     pub fn basis_change(&self, vector: &Vec3) -> Vec3 {
@@ -24,9 +24,9 @@ impl Camera {
         let up = right.cross(&forward).normalize();
 
         let rotated = 
-            vector.x * right +
-            vector.y * up +
-            -vector.z * forward;
+        vector.x * right +
+        vector.y * up +
+        -vector.z * forward;
 
         rotated.normalize()
     }
@@ -50,6 +50,12 @@ impl Camera {
         );
 
         self.eye = new_eye;
+        self.has_changed = true;
+    }
+
+    pub fn zoom(&mut self, delta: f32) {
+        let direction = (self.center - self.eye).normalize();
+        self.eye += direction * delta;
         self.has_changed = true;
     }
 

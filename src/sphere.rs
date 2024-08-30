@@ -35,8 +35,11 @@ impl RayIntersect for Sphere {
             if t > 0.0 {
                 let point = ray_origin + ray_direction * t;
                 let normal = (point - self.center).normalize();
-                let distance = t;
-                let (u, v) = self.get_uv(&point);
+                let distance = t; 
+                let (mut u, mut v) = (0.0, 0.0);
+                if self.material.has_texture {
+                    (u, v) = self.get_uv(&point);
+                }
 
                 return Intersect::new(point, normal, distance, self.material.clone(), u, v);
             }

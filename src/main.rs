@@ -249,6 +249,7 @@ fn main() {
         Vec3::new(0.0, 1.0, 0.0)   // up: World up vector
     );
     let rotation_speed = PI/50.0;
+    let zoom_speed = 0.1;
 
     let light = Light::new(
         Vec3::new(1.0, -1.0, 5.0),
@@ -274,6 +275,14 @@ fn main() {
         }
         if window.is_key_down(Key::Down) {
             camera.orbit(0.0, rotation_speed);
+        }
+
+        // camera zoom controls
+        if window.is_key_down(Key::W) {
+            camera.zoom(zoom_speed);
+        }
+        if window.is_key_down(Key::S) {
+            camera.zoom(-zoom_speed);
         }
 
         if camera.is_changed() {
