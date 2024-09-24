@@ -278,10 +278,10 @@ fn main() {
         }
 
         // camera zoom controls
-        if window.is_key_down(Key::W) {
+        if window.is_key_down(Key::Q) {
             camera.zoom(zoom_speed);
         }
-        if window.is_key_down(Key::S) {
+        if window.is_key_down(Key::E) {
             camera.zoom(-zoom_speed);
         }
 

@@ -5,8 +5,12 @@ use nalgebra_glm::Vec3;
 use crate::color::Color;
 use crate::texture::Texture;
 
-static BALL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ball.png")));
-static BALL_NORMAL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ball_normal.png")));
+// static BALL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ball.png")));
+// static BALL_NORMAL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ball_normal.png")));
+
+
+static BALL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/bricks.png")));
+static BALL_NORMAL: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/bricks_normal.png")));
 
 #[derive(Debug, Clone)]
 pub struct Material {
@@ -55,6 +59,7 @@ impl Material {
       let x = (u * (BALL.width as f32 - 1.0)) as usize;
       let y = ((1.0 - v) * (BALL.height as f32 - 1.0)) as usize;
       BALL.get_color(x, y)
+      // Color::new(255, 0, 0)
     }
     else {
       self.diffuse

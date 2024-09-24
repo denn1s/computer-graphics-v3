@@ -28,7 +28,7 @@ impl Sphere {
         // Transform the tangent normal to world space
         let perturbed_normal = tangent * tangent_normal.x + bitangent * tangent_normal.y + normal * tangent_normal.z;
 
-        let blend_factor = 0.2; // Adjust this value to control the strength of the normal map
+        let blend_factor = 10.0; // Adjust this value to control the strength of the normal map
         (normal * (1.0 - blend_factor) + perturbed_normal * blend_factor).normalize()
     }
 }
