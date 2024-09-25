@@ -1,48 +1,42 @@
-// line.rs
-use crate::framebuffer::Framebuffer;
-use nalgebra_glm::Vec3;
+use crate::fragment::Fragment;
+use crate::vertex::Vertex;
+use crate::color::Color;
 
-pub trait Line {
-    fn line(&mut self, start: Vec3, end: Vec3);
-}
+pub fn line(a: &Vertex, b: &Vertex) -> Vec<Fragment> {
+    let mut fragments = Vec::new();
 
-impl Line for Framebuffer {
-    fn line(&mut self, start: Vec3, end: Vec3) {
-        let mut x0 = start.x as i32;
-        let mut y0 = start.y as i32;
-        let x1 = end.x as i32;
-        let y1 = end.y as i32;
+    let start = a.transformed_position;
+    let end = b.transformed_position;
 
-        // Determine the deltas
-        let dx = (x1 - x0).abs();
-        let dy = (y1 - y0).abs();
+    let mut x0 = start.x as i32;
+    let mut y0 = start.y as i32;
+    let x1 = end.x as i32;
+    let y1 = end.y as i32;
 
-        // Determine the direction of the increment
-        let sx = if x0 < x1 { 1 } else { -1 };
-        let sy = if y0 < y1 { 1 } else { -1 };
+    let dx = (x1 - x0).abs();
+    let dy = (y1 - y0).abs();
 
-        let mut err = if dx > dy { dx / 2 } else { -dy / 2 };
+    let sx = if x0 < x1 { 1 } else { -1 };
+    let sy = if y0 < y1 { 1 } else { -1 };
 
-        loop {
-            // Draw the current point
-            self.point(x0 as usize, y0 as usize);
+    let mut err = if dx > dy { dx / 2 } else { -dy / 2 };
 
-            // Check if the end point has been reached
-            if x0 == x1 && y0 == y1 { break; }
+    loop {
+        let z = start.z + (end.z - start.z) * (x0 - start.x as i32) as f32 / (end.x - start.x) as f32;
+        fragments.push(Fragment::new(x0 as f32, y0 as f32, Color::new(255, 255, 255), z));
 
-            // Calculate error
-            let e2 = err;
-            
-            // Adjust error and coordinates based on the dominant direction
-            if e2 > -dx {
-                err -= dy;
-                x0 += sx;
-            }
-            if e2 < dy {
-                err += dx;
-                y0 += sy;
-            }
+        if x0 == x1 && y0 == y1 { break; }
+
+        let e2 = err;
+        if e2 > -dx {
+            err -= dy;
+            x0 += sx;
+        }
+        if e2 < dy {
+            err += dx;
+            y0 += sy;
         }
     }
-}
 
+    fragments
+}

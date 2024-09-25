@@ -1,16 +1,15 @@
-// triangle.rs
-use crate::framebuffer::Framebuffer;
-use crate::line::Line;
-use nalgebra_glm::Vec3;
+use crate::fragment::Fragment;
+use crate::vertex::Vertex;
+use crate::line::line;
 
-pub trait Triangle {
-    fn triangle(&mut self, v1: Vec3, v2: Vec3, v3: Vec3);
+pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
+    let mut fragments = Vec::new();
+
+    // Draw the three sides of the triangle
+    fragments.extend(line(v1, v2));
+    fragments.extend(line(v2, v3));
+    fragments.extend(line(v3, v1));
+
+    fragments
 }
 
-impl Triangle for Framebuffer {
-    fn triangle(&mut self, v1: Vec3, v2: Vec3, v3: Vec3) {
-        self.line(v1, v2);
-        self.line(v2, v3);
-        self.line(v3, v1);
-    }
-}
