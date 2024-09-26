@@ -44,12 +44,12 @@ impl Obj {
     pub fn get_vertex_array(&self) -> Vec<Vertex> {
         self.indices.iter().map(|&index| {
             let position = self.vertices[index as usize];
-            let normal = if !self.normals.is_empty() {
+            let normal = if !self.normals.is_empty() && ((index as usize) < self.normals.len()) {
                 self.normals[index as usize]
             } else {
                 Vec3::new(0.0, 1.0, 0.0) // Default normal if not provided
             };
-            let tex_coords = if !self.texcoords.is_empty() {
+            let tex_coords = if !self.texcoords.is_empty() && ((index as usize) < self.texcoords.len()) {
                 self.texcoords[index as usize]
             } else {
                 Vec2::new(0.0, 0.0) // Default texture coordinates if not provided
