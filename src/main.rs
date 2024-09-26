@@ -124,7 +124,7 @@ fn main() {
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut scale = 100.0f32;
 
-    let obj = Obj::load("assets/models/model.obj").expect("Failed to load obj");
+    let obj = Obj::load("assets/models/rem.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array(); 
 
     while window.is_open() {
@@ -164,10 +164,10 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         translation.y += 10.0;
     }
     if window.is_key_down(Key::S) {
-        *scale += 0.9;
+        *scale += 2.0;
     }
     if window.is_key_down(Key::A) {
-        *scale -= 0.9;
+        *scale -= 2.0;
     }
     if window.is_key_down(Key::Q) {
         rotation.x -= PI / 10.0;
