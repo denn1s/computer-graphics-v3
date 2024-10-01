@@ -21,7 +21,6 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
 
   let (min_x, min_y, max_x, max_y) = calculate_bounding_box(&a, &b, &c);
 
-  // Sample light direction (pointing downwards)
   let light_dir = Vec3::new(0.0, 0.0, -1.0);
 
   let triangle_area = edge_function(&a, &b, &c);
@@ -51,7 +50,8 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
         let lit_color = base_color * intensity;
 
         // Interpolate depth
-        let depth = a.z * w1 + b.z * w2 + c.z * w3;
+        // let depth = a.z * w1 + b.z * w2 + c.z * w3;
+        let depth = a.z;
 
         fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth));
       }
