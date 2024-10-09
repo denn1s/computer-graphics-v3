@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Mat4};
+use nalgebra_glm::{Vec3, Mat4, look_at, perspective};
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
@@ -18,9 +18,11 @@ use obj::Obj;
 use triangle::triangle;
 use shaders::vertex_shader;
 
-
 pub struct Uniforms {
     model_matrix: Mat4,
+    view_matrix: Mat4,
+    projection_matrix: Mat4,
+    viewport_matrix: Mat4,
 }
 
 fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
@@ -59,6 +61,29 @@ fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
     );
 
     transform_matrix * rotation_matrix
+}
+
+
+fn create_view_matrix(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
+    look_at(&eye, &center, &up)
+}
+
+fn create_perspective_matrix(window_width: f32, window_height: f32) -> Mat4 {
+    let fov = 45.0 * PI / 180.0;
+    let aspect_ratio = window_width / window_height;
+    let near = 0.1;
+    let far = 1000.0;
+
+    perspective(fov, aspect_ratio, near, far)
+}
+
+fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
+    Mat4::new(
+        width / 2.0, 0.0, 0.0, width / 2.0,
+        0.0, -height / 2.0, 0.0, height / 2.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -120,9 +145,15 @@ fn main() {
 
     framebuffer.set_background_color(0x333355);
 
-    let mut translation = Vec3::new(300.0, 200.0, 0.0);
-    let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 100.0f32;
+    // model position
+    let translation = Vec3::new(0.0, 0.0, 0.0);
+    let rotation = Vec3::new(0.0, 0.0, 0.0);
+    let scale = 1.0f32;
+
+    // camera parameters
+    let mut eye = Vec3::new(0.0, 0.0, 5.0);
+    let mut center = Vec3::new(0.0, 0.0, 0.0);
+    let up = Vec3::new(0.0, 1.0, 0.0);
 
     let obj = Obj::load("assets/models/model.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array(); 
@@ -132,12 +163,16 @@ fn main() {
             break;
         }
 
-        handle_input(&window, &mut translation, &mut rotation, &mut scale);
+        handle_input(&window, &mut eye, &mut center);
 
         framebuffer.clear();
 
         let model_matrix = create_model_matrix(translation, scale, rotation);
-        let uniforms = Uniforms { model_matrix };
+        let view_matrix = create_view_matrix(eye, center, up);
+        let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
+        let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
+        let uniforms = Uniforms { model_matrix, view_matrix, projection_matrix, viewport_matrix };
+
 
         framebuffer.set_current_color(0xFFDDDD);
         render(&mut framebuffer, &uniforms, &vertex_arrays);
@@ -150,41 +185,42 @@ fn main() {
     }
 }
 
-fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
-    if window.is_key_down(Key::Right) {
-        translation.x += 10.0;
-    }
-    if window.is_key_down(Key::Left) {
-        translation.x -= 10.0;
-    }
-    if window.is_key_down(Key::Up) {
-        translation.y -= 10.0;
-    }
-    if window.is_key_down(Key::Down) {
-        translation.y += 10.0;
+fn handle_input(window: &Window, eye: &mut Vec3, center: &mut Vec3) {
+    let move_speed = 5.0;
+
+    // Move the center (WASD keys)
+    if window.is_key_down(Key::W) {
+        center.y -= move_speed; // Move center up
     }
     if window.is_key_down(Key::S) {
-        *scale += 2.0;
+        center.y += move_speed; // Move center down
     }
     if window.is_key_down(Key::A) {
-        *scale -= 2.0;
+        center.x -= move_speed; // Move center left
     }
+    if window.is_key_down(Key::D) {
+        center.x += move_speed; // Move center right
+    }
+
+    // Move the eye (arrow keys)
+    if window.is_key_down(Key::Up) {
+        eye.y -= move_speed; // Move eye up
+    }
+    if window.is_key_down(Key::Down) {
+        eye.y += move_speed; // Move eye down
+    }
+    if window.is_key_down(Key::Left) {
+        eye.x -= move_speed; // Move eye left
+    }
+    if window.is_key_down(Key::Right) {
+        eye.x += move_speed; // Move eye right
+    }
+
+    // Optionally, add controls for moving the camera forward/backward
     if window.is_key_down(Key::Q) {
-        rotation.x -= PI / 10.0;
-    }
-    if window.is_key_down(Key::W) {
-        rotation.x += PI / 10.0;
+        eye.z -= move_speed; // Move eye closer
     }
     if window.is_key_down(Key::E) {
-        rotation.y -= PI / 10.0;
-    }
-    if window.is_key_down(Key::R) {
-        rotation.y += PI / 10.0;
-    }
-    if window.is_key_down(Key::T) {
-        rotation.z -= PI / 10.0;
-    }
-    if window.is_key_down(Key::Y) {
-        rotation.z += PI / 10.0;
+        eye.z += move_speed; // Move eye farther
     }
 }
