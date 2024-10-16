@@ -23,7 +23,7 @@ pub struct Uniforms {
     view_matrix: Mat4,
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
-    frame_count: u32,
+    time: u32,
 }
 
 fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
@@ -161,14 +161,14 @@ fn main() {
 
     let obj = Obj::load("assets/models/model.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array(); 
-    let mut frame_count = 0;
+    let mut time = 0;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
         }
 
-        frame_count += 1;
+        time += 1;
 
         handle_input(&window, &mut camera);
 
@@ -183,7 +183,7 @@ fn main() {
             view_matrix, 
             projection_matrix, 
             viewport_matrix, 
-            frame_count, 
+            time, 
         };
 
         framebuffer.set_current_color(0xFFDDDD);
