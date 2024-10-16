@@ -1,6 +1,9 @@
-use nalgebra_glm::{Vec3, Vec4, Mat3};
+use nalgebra_glm::{Vec3, Vec4, Mat3, dot};
 use crate::vertex::Vertex;
 use crate::Uniforms;
+use crate::fragment::Fragment;
+use crate::color::Color;
+use rand::Rng;
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
   // Transform position
@@ -44,4 +47,11 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     transformed_normal,
   }
 }
+
+pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Apply the fragment intensity to the mixed color
+    fragment.color * fragment.intensity
+}
+
+
 

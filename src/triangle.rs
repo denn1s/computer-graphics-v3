@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, dot};
+use nalgebra_glm::{Vec3, dot, Vec2};
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
 use crate::line::line;
@@ -45,14 +45,19 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
         // Calculate lighting intensity
         let intensity = dot(&normal, &light_dir).max(0.0);
 
-        // Create a gray color and apply lighting
-        let base_color = Color::new(100, 100, 100); // Medium gray
-        let lit_color = base_color * intensity;
+        // Create a gray color (unchanged)
+        let color = Color::new(100, 100, 100); // Medium gray
 
         // Interpolate depth
         let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
-        fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth));
+        fragments.push(Fragment::new(
+            Vec2::new(x as f32, y as f32),
+            color,
+            depth,
+            normal,
+            intensity
+        ));
       }
     }
   }

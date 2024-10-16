@@ -1,6 +1,7 @@
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
 use crate::color::Color;
+use nalgebra_glm::{Vec3, Vec2};
 
 pub fn line(a: &Vertex, b: &Vertex) -> Vec<Fragment> {
     let mut fragments = Vec::new();
@@ -23,7 +24,15 @@ pub fn line(a: &Vertex, b: &Vertex) -> Vec<Fragment> {
 
     loop {
         let z = start.z + (end.z - start.z) * (x0 - start.x as i32) as f32 / (end.x - start.x) as f32;
-        fragments.push(Fragment::new(x0 as f32, y0 as f32, Color::new(255, 255, 255), z));
+        fragments.push(
+            Fragment::new(
+                Vec2::new(x0 as f32, y0 as f32), 
+                Color::new(255, 255, 255), 
+                z, 
+                Vec3::new(0.0, 0.0, 0.0), 
+                1.0
+            )
+        );
 
         if x0 == x1 && y0 == y1 { break; }
 
