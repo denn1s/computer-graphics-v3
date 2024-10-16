@@ -4,7 +4,6 @@ use std::f32::consts::PI;
 
 mod framebuffer;
 mod triangle;
-mod line;
 mod vertex;
 mod obj;
 mod color;

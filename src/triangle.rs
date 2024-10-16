@@ -1,19 +1,7 @@
 use nalgebra_glm::{Vec3, dot, Vec2};
 use crate::fragment::Fragment;
-use crate::vertex::Vertex;
-use crate::line::line;
+use crate::vertex::{self, Vertex};
 use crate::color::Color;
-
-pub fn _triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
-  let mut fragments = Vec::new();
-
-  // Draw the three sides of the triangle
-  fragments.extend(line(v1, v2));
-  fragments.extend(line(v2, v3));
-  fragments.extend(line(v3, v1));
-
-  fragments
-}
 
 pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
   let mut fragments = Vec::new();
@@ -51,12 +39,16 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
         // Interpolate depth
         let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
+        // Positions of the original vertex
+        let vertex_position = v1.position * w1 + v2.position * w2 + v3.position * w3;
+
         fragments.push(Fragment::new(
             Vec2::new(x as f32, y as f32),
             color,
             depth,
             normal,
-            intensity
+            intensity,
+            vertex_position,
         ));
       }
     }
