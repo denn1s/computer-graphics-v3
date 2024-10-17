@@ -77,7 +77,7 @@ fn create_lava_noise() -> FastNoiseLite {
     noise.set_fractal_octaves(Some(6));             // High octaves for rich detail
     noise.set_fractal_lacunarity(Some(2.0));        // Higher lacunarity = more contrast between layers
     noise.set_fractal_gain(Some(0.5));              // Higher gain = more influence of smaller details
-    noise.set_frequency(Some(0.02));                // Low frequency = large features
+    noise.set_frequency(Some(0.002));                // Low frequency = large features
     
     noise
 }
