@@ -30,26 +30,21 @@ pub struct Uniforms {
 }
 
 fn create_noise() -> FastNoiseLite {
-    // create_cloud_noise() 
+    create_cloud_noise() 
     // create_cell_noise()
     // create_ground_noise()
-    create_lava_noise()
+    // create_lava_noise()
 }
 
 fn create_cloud_noise() -> FastNoiseLite {
     let mut noise = FastNoiseLite::with_seed(1337);
     noise.set_noise_type(Some(NoiseType::OpenSimplex2));
-    // noise.set_fractal_type(Some(FractalType::FBm));
-    // noise.set_fractal_octaves(Some(5));
-    noise.set_frequency(Some(0.009));
     noise
 }
 
 fn create_cell_noise() -> FastNoiseLite {
     let mut noise = FastNoiseLite::with_seed(1337);
     noise.set_noise_type(Some(NoiseType::Cellular));
-    // noise.set_fractal_type(Some(FractalType::FBm));
-    // noise.set_fractal_octaves(Some(5));
     noise.set_frequency(Some(0.1));
     noise
 }
