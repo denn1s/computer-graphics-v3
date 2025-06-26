@@ -40,7 +40,6 @@ fn main() {
     Vector2::new(50.0, 350.0),
   );
 
-
   while !window.window_should_close() {
     framebuffer.render_to_window(&mut window, &raylib_thread);
   }
