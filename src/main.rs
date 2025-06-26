@@ -1,76 +1,81 @@
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
+// main.rs
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
+mod line;
 mod framebuffer;
-use framebuffer::Framebuffer;
 mod maze;
+
+use raylib::prelude::*;
+use std::thread;
+use std::time::Duration;
+use framebuffer::Framebuffer;
+use line::line;
 use maze::load_maze;
 
-fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
-  if cell == ' ' {
-    return;
-  }
 
-  framebuffer.set_current_color(0xFFDDDD);
-
-  for x in xo..xo + block_size {
-    for y in yo..yo + block_size {
-      framebuffer.point(x, y);
+fn draw_cell(
+    framebuffer: &mut Framebuffer,
+    xo: usize,
+    yo: usize,
+    block_size: usize,
+    cell: char,
+) {
+    if cell == ' ' {
+        return;
     }
-  } 
+
+    framebuffer.set_current_color(Color::new(0xFF, 0xDD, 0xDD, 0xFF));
+
+    for x in xo..xo + block_size {
+        for y in yo..yo + block_size {
+            framebuffer.set_pixel(x as u32, y as u32);
+        }
+    }
 }
 
-fn render(framebuffer: &mut Framebuffer) {
-  let maze = load_maze("./maze.txt");
-  let block_size = 100;  // 10 pixels each block
-
-  for row in 0..maze.len() {
-    for col in 0..maze[row].len() {
-      draw_cell(framebuffer, col * block_size, row * block_size, block_size, maze[row][col]);
+pub fn render_maze(
+    framebuffer: &mut Framebuffer,
+    maze: &Vec<Vec<char>>,
+    block_size: usize,
+) {
+    for (row_index, row) in maze.iter().enumerate() {
+        for (col_index, &cell) in row.iter().enumerate() {
+            let xo = col_index * block_size;
+            let yo = row_index * block_size;
+            draw_cell(framebuffer, xo, yo, block_size, cell);
+        }
     }
-  } 
 }
 
 fn main() {
-  let window_width = 1300;
-  let window_height = 900;
+    let window_width = 1300;
+    let window_height = 900;
+    let block_size = 100;
 
-  let framebuffer_width = 1300;
-  let framebuffer_height = 900;
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Raycaster Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
+        .build();
 
-  let frame_delay = Duration::from_millis(16);
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
-  let mut framebuffer = framebuffer::Framebuffer::new(framebuffer_width, framebuffer_height);
+    framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-  let mut window = Window::new(
-    "Rust Graphics - Maze Example",
-    window_width,
-    window_height,
-    WindowOptions::default(),
-  ).unwrap();
+    // Load the maze once before the loop
+    let maze = load_maze("maze.txt");
 
-  // move the window around
-  window.set_position(100, 100);
-  window.update();
+    while !window.window_should_close() {
+        // 1. clear framebuffer
+        framebuffer.clear();
 
-  framebuffer.set_background_color(0x333355);
+        // 2. draw the maze, passing the maze and block size
+        render_maze(&mut framebuffer, &maze, block_size);
 
-  while window.is_open() {
-    // listen to inputs
-    if window.is_key_down(Key::Escape) {
-      break;
+        // 3. swap buffers
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
+
+        thread::sleep(Duration::from_millis(16));
     }
-
-    // Clear the framebuffer
-    framebuffer.clear();
-
-    // Draw some stuff
-    render(&mut framebuffer);
-
-    // Update the window with the framebuffer contents
-    window
-      .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-      .unwrap();
-
-    std::thread::sleep(frame_delay);
-  }
 }
