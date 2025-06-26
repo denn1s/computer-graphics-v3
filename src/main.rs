@@ -9,7 +9,7 @@ mod caster;
 mod player;
 
 use line::line;
-use maze::load_maze;
+use maze::{Maze,load_maze};
 use caster::{cast_ray, Intersect};
 use framebuffer::Framebuffer;
 use player::{Player, process_events};
@@ -61,7 +61,7 @@ fn draw_cell(
 
 pub fn render_maze(
   framebuffer: &mut Framebuffer,
-  maze: &Vec<Vec<char>>,
+  maze: &Maze,
   block_size: usize,
   player: &Player,
 ) {
@@ -86,7 +86,7 @@ pub fn render_maze(
 
 fn render_world(
   framebuffer: &mut Framebuffer,
-  maze: &Vec<Vec<char>>,
+  maze: &Maze,
   block_size: usize,
   player: &Player,
 ) {

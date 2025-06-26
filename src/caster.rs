@@ -3,6 +3,7 @@
 use raylib::color::Color;
 
 use crate::framebuffer::Framebuffer;
+use crate::maze::Maze;
 use crate::player::Player;
 
 pub struct Intersect {
@@ -12,7 +13,7 @@ pub struct Intersect {
 
 pub fn cast_ray(
   framebuffer: &mut Framebuffer,
-  maze: &Vec<Vec<char>>,
+  maze: &Maze,
   player: &Player,
   a: f32,
   block_size: usize,
