@@ -1,3 +1,6 @@
+// caster.rs
+
+use raylib::color::Color;
 
 use crate::framebuffer::Framebuffer;
 use crate::player::Player;
@@ -17,7 +20,7 @@ pub fn cast_ray(
 ) -> Intersect {
   let mut d = 0.0;
 
-  framebuffer.set_current_color(0xFFDDDD);
+  framebuffer.set_current_color(Color::WHITESMOKE);
 
   loop {
     let cos = d * a.cos();
@@ -36,7 +39,7 @@ pub fn cast_ray(
     }
 
     if draw_line {
-      framebuffer.point(x, y);
+      framebuffer.set_pixel(x as u32, y as u32);
     }
 
     d += 10.0;
