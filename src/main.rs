@@ -1,65 +1,79 @@
-use minifb::{Key, Window, WindowOptions};
+// main.rs
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
+mod line;
+mod framebuffer;
+mod maze;
+mod caster;
+mod player;
+
+use line::line;
+use maze::load_maze;
+use caster::{cast_ray};
+use framebuffer::Framebuffer;
+use player::{Player, process_events};
+
+use raylib::prelude::*;
+use std::thread;
 use std::time::Duration;
 use std::f32::consts::PI;
-use nalgebra_glm::{Vec2};
-mod framebuffer;
-use framebuffer::Framebuffer;
-mod maze;
-use maze::load_maze;
-mod player;
-use player::{Player, process_events};
-mod caster;
-use caster::{cast_ray};
 
-fn cell_to_color(cell: char) -> u32 {
+fn cell_to_color(cell: char) -> Color {
   match cell {
     '+' => {
-      return 0xDDFFFF;
+      return Color::BLUEVIOLET;
     },
     '-' => {
-      return 0xFFDDFF;
+      return Color::VIOLET;
     },
     '|' => {
-      return 0xFFFFDD;
+      return Color::VIOLET;
     },
     'g' => {
-      return 0xFF0000;
+      return Color::GREEN;
     },
     _ => {
-      return 0xFFFFFF;
+      return Color::WHITE;
     },
   }
 }
 
-fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
+fn draw_cell(
+  framebuffer: &mut Framebuffer,
+  xo: usize,
+  yo: usize,
+  block_size: usize,
+  cell: char,
+) {
   if cell == ' ' {
     return;
   }
-
   let color = cell_to_color(cell);
   framebuffer.set_current_color(color);
 
   for x in xo..xo + block_size {
     for y in yo..yo + block_size {
-      framebuffer.point(x, y);
+      framebuffer.set_pixel(x as u32, y as u32);
     }
-  } 
+  }
 }
 
-fn render2d(framebuffer: &mut Framebuffer, player: &Player) {
-  let maze = load_maze("./maze.txt");
-  let block_size = 100; 
-
-  // draw the minimap
-  for row in 0..maze.len() {
-    for col in 0..maze[row].len() {
-      draw_cell(framebuffer, col * block_size, row * block_size, block_size, maze[row][col]);
+pub fn render_maze(
+  framebuffer: &mut Framebuffer,
+  maze: &Vec<Vec<char>>,
+  block_size: usize,
+  player: &Player,
+) {
+  for (row_index, row) in maze.iter().enumerate() {
+    for (col_index, &cell) in row.iter().enumerate() {
+      let xo = col_index * block_size;
+      let yo = row_index * block_size;
+      draw_cell(framebuffer, xo, yo, block_size, cell);
     }
   }
 
-  // draw the player
-  framebuffer.set_current_color(0xFFDDDD);
-  framebuffer.point(player.pos.x as usize, player.pos.y as usize);
+  framebuffer.set_current_color(Color::WHITESMOKE);
 
   // draw what the player sees
   let num_rays = 5;
@@ -70,7 +84,7 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player) {
   }
 }
 
-fn render3d(framebuffer: &mut Framebuffer, player: &Player) {
+fn render_world(framebuffer: &mut Framebuffer, player: &Player) {
   // not yet implemented
 }
 
@@ -78,61 +92,51 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player) {
 fn main() {
   let window_width = 1300;
   let window_height = 900;
+  let block_size = 100;
 
-  let framebuffer_width = 1300;
-  let framebuffer_height = 900;
+  let (mut window, raylib_thread) = raylib::init()
+    .size(window_width, window_height)
+    .title("Raycaster Example")
+    .log_level(TraceLogLevel::LOG_WARNING)
+    .build();
 
-  let frame_delay = Duration::from_millis(0);
+  let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
+  framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-  let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
-
-  let mut window = Window::new(
-    "Rust Graphics - Maze Example",
-    window_width,
-    window_height,
-    WindowOptions::default(),
-  ).unwrap();
-
-  // move the window around
-  window.set_position(100, 100);
-  window.update();
-
-  // initialize values
-  framebuffer.set_background_color(0x333355);
+  let maze = load_maze("maze.txt");
   let mut player = Player {
-    pos: Vec2::new(150.0, 150.0),
+    pos: Vector2::new(150.0, 150.0),
     a: PI / 3.0,
     fov: PI / 3.0,
   };
 
-  let mut mode = "2D";
+  while !window.window_should_close() {
+    // 1. clear framebuffer
+    framebuffer.clear();
 
-  while window.is_open() {
-    // listen to inputs
-    if window.is_key_down(Key::Escape) {
-      break;
-    }
-    if window.is_key_down(Key::M) {
+    // 2. move the player on user input
+    process_events(&mut player, &window);
+
+    let mut mode = "2D";
+
+    if window.is_key_down(KeyboardKey::KEY_M) {
       mode = if mode == "2D" { "3D" } else { "2D" };
     }
-    process_events(&window, &mut player);
 
     // Clear the framebuffer
     framebuffer.clear();
 
-    // Draw some stuff
+    // 3. draw stuff
     if mode == "2D" {
-      render2d(&mut framebuffer, &player);
+      render_maze(&mut framebuffer, &maze, block_size, &player);
     } else {
-      render3d(&mut framebuffer, &player);
+      render_world(&mut framebuffer, &player);
     }
 
-    // Update the window with the framebuffer contents
-    window
-      .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-      .unwrap();
+    // 4. swap buffers
+    framebuffer.swap_buffers(&mut window, &raylib_thread);
 
-    std::thread::sleep(frame_delay);
+    thread::sleep(Duration::from_millis(16));
   }
 }
 
