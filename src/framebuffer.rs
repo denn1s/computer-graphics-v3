@@ -42,14 +42,18 @@ impl Framebuffer {
         self.color_buffer.export_image(file_path);
     }
 
-    pub fn render_to_window(
+    pub fn swap_buffers(
         &self,
         window: &mut RaylibHandle,
         raylib_thread: &RaylibThread,
     ) {
+        // the window currently has the "old" data (previous frame)
+        
+        // we get the "new" data from the new buffer into texture
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let mut renderer = window.begin_drawing(raylib_thread);
-            renderer.clear_background(self.background_color);
+
+            // we move the "new" data to the window (current frame) 
             renderer.draw_texture(&texture, 0, 0, Color::WHITE);
         }
     }

@@ -60,7 +60,7 @@ fn main() {
         render(&mut framebuffer, translate_x, translate_y);
 
         // 3. swap buffers
-        framebuffer.render_to_window(&mut window, &raylib_thread);
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
 
         thread::sleep(Duration::from_millis(16));
     }
