@@ -18,8 +18,8 @@ fn main() {
   let (mut window, raylib_thread) = raylib::init()
     .size(window_width, window_height)
     .title("Window Example")
+    .log_level(TraceLogLevel::LOG_WARNING)
     .build();
-
 
   let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
