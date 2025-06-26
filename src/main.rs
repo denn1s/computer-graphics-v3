@@ -11,7 +11,7 @@ use std::thread;
 use std::time::Duration;
 use framebuffer::Framebuffer;
 use line::line;
-use maze::load_maze;
+use maze::{Maze,load_maze};
 
 
 fn draw_cell(
@@ -36,7 +36,7 @@ fn draw_cell(
 
 pub fn render_maze(
     framebuffer: &mut Framebuffer,
-    maze: &Vec<Vec<char>>,
+    maze: &Maze,
     block_size: usize,
 ) {
     for (row_index, row) in maze.iter().enumerate() {
