@@ -14,7 +14,6 @@ fn main() {
   let framebuffer_width = 800;
   let framebuffer_height = 600;
 
-  // initialize a window
   let (mut window, raylib_thread) = raylib::init()
     .size(window_width, window_height)
     .title("Window Example")
@@ -43,6 +42,6 @@ fn main() {
   while !window.window_should_close() {
     framebuffer.render_to_window(&mut window, &raylib_thread);
   }
-
-  framebuffer.render_to_file("output.png");
 }
+
+

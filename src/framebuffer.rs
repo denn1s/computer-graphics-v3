@@ -38,7 +38,7 @@ impl Framebuffer {
         self.current_color = color;
     }
 
-    pub fn render_to_file(&self, file_path: &str) {
+    pub fn _render_to_file(&self, file_path: &str) {
         self.color_buffer.export_image(file_path);
     }
 
@@ -54,3 +54,4 @@ impl Framebuffer {
         }
     }
 }
+
