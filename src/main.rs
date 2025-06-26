@@ -1,35 +1,35 @@
- // main.rs
+// main.rs
 
 mod framebuffer;
 mod line;
-mod bmp;
 
+use raylib::prelude::*;
 use framebuffer::Framebuffer;
-use line::Line;
-use bmp::WriteBmp;
+use line::line;
 
 fn main() {
-    let width = 800;
-    let height = 600;
-    let mut framebuffer = Framebuffer::new(width, height);
+  let width = 800;
+  let height = 600;
+  let mut framebuffer = Framebuffer::new(width, height);
 
-    // Clear the framebuffer with a white background
-    framebuffer.set_background_color(0xFFFFFF);
-    framebuffer.clear();
+  framebuffer.set_background_color(Color::new(50, 50, 100, 255));
+  framebuffer.clear();
 
-    // Set the current drawing color to black
-    framebuffer.set_current_color(0x000000);
+  framebuffer.set_current_color(Color::GREEN);
+  line(
+    &mut framebuffer,
+    Vector2::new(50.0, 50.0),
+    Vector2::new(350.0, 350.0),
+  );
 
-    // Draw some lines using Bresenham's algorithm
-    framebuffer.line(100, 100, 700, 500);
-    framebuffer.line(700, 100, 100, 500);
-    framebuffer.line(400, 50, 400, 550);
-    framebuffer.line(50, 300, 750, 300);
+  framebuffer.set_current_color(Color::RED);
+  line(
+    &mut framebuffer,
+    Vector2::new(350.0, 50.0),
+    Vector2::new(50.0, 350.0),
+  );
 
-    // Save the framebuffer as a BMP file
-    let output_file = "lines.bmp";
-    match framebuffer.render_buffer(output_file) {
-        Ok(_) => println!("Image saved as {}", output_file),
-        Err(e) => eprintln!("Error saving image: {}", e),
-    }
+  let output_file = "lines.bmp";
+
+  framebuffer.render_to_file(output_file);
 } 
