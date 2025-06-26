@@ -33,16 +33,13 @@ fn main() {
     let window_width = 800;
     let window_height = 600;
 
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
-
     let (mut window, raylib_thread) = raylib::init()
         .size(window_width, window_height)
         .title("Window Example")
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
-    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
