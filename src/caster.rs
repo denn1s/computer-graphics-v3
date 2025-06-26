@@ -3,9 +3,10 @@
 use raylib::color::Color;
 
 use crate::framebuffer::Framebuffer;
+use crate::maze::Maze;
 use crate::player::Player;
 
-pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Vec<Vec<char>>, player: &Player, block_size: usize) {
+pub fn cast_ray(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, block_size: usize) {
   let mut d = 0.0;
 
   framebuffer.set_current_color(Color::WHITESMOKE);

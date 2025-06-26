@@ -9,7 +9,7 @@ mod caster;
 mod player;
 
 use line::line;
-use maze::load_maze;
+use maze::{Maze,load_maze};
 use caster::{cast_ray};
 use framebuffer::Framebuffer;
 use player::{Player, process_events};
@@ -42,7 +42,7 @@ fn draw_cell(
 
 pub fn render_maze(
     framebuffer: &mut Framebuffer,
-    maze: &Vec<Vec<char>>,
+    maze: &Maze,
     block_size: usize,
     player: &Player,
 ) {
@@ -94,7 +94,7 @@ fn main() {
         // 3 draw the maze, top down view
         render_maze(&mut framebuffer, &maze, block_size, &player);
 
-        // 3. swap buffers
+        // 4. swap buffers
         framebuffer.swap_buffers(&mut window, &raylib_thread);
 
         thread::sleep(Duration::from_millis(16));
