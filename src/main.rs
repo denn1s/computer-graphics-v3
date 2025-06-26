@@ -9,7 +9,7 @@ mod caster;
 mod player;
 
 use line::line;
-use maze::load_maze;
+use maze::{Maze,load_maze};
 use caster::{cast_ray};
 use framebuffer::Framebuffer;
 use player::{Player, process_events};
@@ -61,7 +61,7 @@ fn draw_cell(
 
 pub fn render_maze(
   framebuffer: &mut Framebuffer,
-  maze: &Vec<Vec<char>>,
+  maze: &Maze,
   block_size: usize,
   player: &Player,
 ) {
@@ -84,7 +84,12 @@ pub fn render_maze(
   }
 }
 
-fn render_world(framebuffer: &mut Framebuffer, player: &Player) {
+fn render_world(
+  framebuffer: &mut Framebuffer,
+  maze: &Maze,
+  block_size: usize,
+  player: &Player,
+) {
   // not yet implemented
 }
 
@@ -117,20 +122,15 @@ fn main() {
     // 2. move the player on user input
     process_events(&mut player, &window);
 
-    let mut mode = "2D";
-
+    let mut mode = "3D";
     if window.is_key_down(KeyboardKey::KEY_M) {
       mode = if mode == "2D" { "3D" } else { "2D" };
     }
-
-    // Clear the framebuffer
-    framebuffer.clear();
-
     // 3. draw stuff
     if mode == "2D" {
       render_maze(&mut framebuffer, &maze, block_size, &player);
     } else {
-      render_world(&mut framebuffer, &player);
+      render_world(&mut framebuffer, &maze, block_size, &player);
     }
 
     // 4. swap buffers
