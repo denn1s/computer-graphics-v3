@@ -40,7 +40,7 @@ fn main() {
   );
 
   while !window.window_should_close() {
-    framebuffer.render_to_window(&mut window, &raylib_thread);
+    framebuffer.swap_buffers(&mut window, &raylib_thread);
   }
 }
 
