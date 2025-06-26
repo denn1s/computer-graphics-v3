@@ -1,58 +1,70 @@
+// main.rs
 
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
+mod line;
 mod framebuffer;
 
-fn main() {
-  let window_width = 800;
-  let window_height = 600;
+use raylib::prelude::*;
+use framebuffer::Framebuffer;
+use line::line;
+use std::thread;
+use std::time::Duration;
 
-  let framebuffer_width = 80;
-  let framebuffer_height = 60;
+fn render(
+    framebuffer: &mut Framebuffer,
+    translate_x: f32,
+    translate_y: f32,
+) {
+    framebuffer.set_current_color(Color::GREEN);
+    line(
+        framebuffer,
+        Vector2::new(50.0 + translate_x, 50.0 + translate_y),
+        Vector2::new(350.0 + translate_x, 350.0 + translate_y),
+    );
 
-  let frame_delay = Duration::from_millis(16);
-
-  let mut framebuffer = framebuffer::Framebuffer::new(framebuffer_width, framebuffer_height);
-
-  let mut window = Window::new(
-    "Rust Graphics - Framebuffer Example",
-    window_width,
-    window_height,
-    WindowOptions::default(),
-  ).unwrap();
-
-  framebuffer.set_background_color(0x333355);
-
-  let mut x = 1 as i32;
-  let mut speed = 1 as i32;
-
-  while window.is_open() {
-    // listen to inputs
-    if window.is_key_down(Key::Escape) {
-      break;
-    }
-
-    // prepare variables for rendering
-    if x as usize == framebuffer_width {
-      speed = -1;
-    }
-    if x == 0 {
-      speed = 1;
-    }
-    x += speed;
-
-    // Clear the framebuffer
-    framebuffer.clear();
-
-    // Draw some points
-    framebuffer.set_current_color(0xFFDDDD);
-    framebuffer.point(x as usize, 40);
-
-    // Update the window with the framebuffer contents
-    window
-      .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-      .unwrap();
-
-    std::thread::sleep(frame_delay);
-  }
+    framebuffer.set_current_color(Color::RED);
+    line(
+        framebuffer,
+        Vector2::new(350.0 + translate_x, 50.0 + translate_y),
+        Vector2::new(50.0 + translate_x, 350.0 + translate_y),
+    );
 }
+
+fn main() {
+    let window_width = 800;
+    let window_height = 600;
+
+    let framebuffer_width = 800;
+    let framebuffer_height = 600;
+
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Window Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
+        .build();
+
+    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
+
+    framebuffer.set_background_color(Color::new(50, 50, 100, 255));
+
+    let mut translate_x = 0.0;
+    let mut translate_y = 0.0;
+
+    while !window.window_should_close() {
+        translate_x += 1.0;
+        translate_y += 1.0;
+
+        // 1. clear framebuffer
+        framebuffer.clear();
+
+        // 2. draw in the screen
+        render(&mut framebuffer, translate_x, translate_y);
+
+        // 3. swap buffers
+        framebuffer.render_to_window(&mut window, &raylib_thread);
+
+        thread::sleep(Duration::from_millis(16));
+    }
+}
+
+
+
