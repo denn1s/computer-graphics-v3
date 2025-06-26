@@ -1,42 +1,49 @@
+// main.rs
 
-use minifb::{Window, WindowOptions};
-use std::time::Duration;
+mod line;
 mod framebuffer;
+
+use raylib::prelude::*;
+use framebuffer::Framebuffer;
+use line::line;
 
 fn main() {
   let window_width = 800;
   let window_height = 600;
 
-  let framebuffer_width = 80;
-  let framebuffer_height = 60;
+  let framebuffer_width = 800;
+  let framebuffer_height = 600;
 
-  let close_delay = Duration::from_secs(10);
+  // initialize a window
+  let (mut window, raylib_thread) = raylib::init()
+    .size(window_width, window_height)
+    .title("Window Example")
+    .build();
 
-  let mut framebuffer = framebuffer::Framebuffer::new(framebuffer_width, framebuffer_height);
 
-  let mut window = Window::new(
-    "Rust Graphics - Framebuffer Example",
-    window_width,
-    window_height,
-    WindowOptions::default(),
-  ).unwrap();
+  let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
-  // move the window around
-  window.set_position(500, 500);
-  window.update();
-
-  // Clear the framebuffer
-  framebuffer.set_background_color(0x333355);
+  framebuffer.set_background_color(Color::new(50, 50, 100, 255));
   framebuffer.clear();
 
-  // Draw a point
-  framebuffer.set_current_color(0xFFDDDD);
-  framebuffer.point(1, 1);
+  framebuffer.set_current_color(Color::GREEN);
+  line(
+    &mut framebuffer,
+    Vector2::new(50.0, 50.0),
+    Vector2::new(350.0, 350.0),
+  );
 
-  // Update the window with the framebuffer contents
-  window
-    .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-    .unwrap();
+  framebuffer.set_current_color(Color::RED);
+  line(
+    &mut framebuffer,
+    Vector2::new(350.0, 50.0),
+    Vector2::new(50.0, 350.0),
+  );
 
-  std::thread::sleep(close_delay);
+
+  while !window.window_should_close() {
+    framebuffer.render_to_window(&mut window, &raylib_thread);
+  }
+
+  framebuffer.render_to_file("output.png");
 }
