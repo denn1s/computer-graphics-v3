@@ -74,7 +74,6 @@ fn draw_sprite(
     let end_y = (start_y + sprite_size_usize).min(framebuffer.height as usize);
 
     for x in start_x..end_x {
-        // Depth check with z-buffer
         for y in start_y..end_y {
             // Map screen pixel to texture coordinates (assuming 128x128 texture)
             let tx = ((x - start_x) * 128 / sprite_size_usize) as u32;
