@@ -1,66 +1,44 @@
-# Lesson 3: Understanding the Main Render Loop
+Rust Raycaster with Raylib
 
-In this lesson, we will dive into the core of real-time graphics: the main render loop. We will break down its components and understand how each part works together to create smooth, responsive graphics applications.
+This project is a simple raycasting engine implemented in Rust using the raylib library for graphics and input handling. It demonstrates fundamental concepts of 3D rendering using 2D raycasting, inspired by classic games like Wolfenstein 3D.
 
-## Key Definitions
+Features
 
-    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
-    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
-    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
-    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
+- 2D Maze Loading: Load maze layouts from text files to define walls and open spaces.
+- Raycasting Rendering: Render a 3D-like view of the maze by casting rays and drawing vertical wall slices.
+- Textured Walls: Apply textures to walls for a more immersive visual experience.
+- Sprite Rendering: Render sprites (e.g., enemies) within the 3D world using raycasting techniques.
+- UI Rendering: Display 2D UI elements using textures.
+- Player Movement and Rotation: Control the player with keyboard input, including smooth rotation and movement.
+- Fisheye Correction: Correct the distortion caused by ray angles to produce realistic visuals.
 
-## Main Parts of the Render Loop
+Getting Started
 
-### - Initialization:
-        Set up necessary variables, buffers, and create the window.
+Prerequisites
 
-### - Exit Condition:
-        Check for conditions that signal the end of the application, such as a specific key press or window close event.
+- Rust toolchain installed (recommended via rustup)
+- raylib installed on your system
+- raylib-rs crate dependencies handled via Cargo
 
-### - Listening to User Input:
-        Handle user inputs like keyboard and mouse events.
+Project Structure
 
-### - Clearing the Buffer:
-        Clear the buffer to prepare it for the new frame's pixel data.
+- main.rs: Entry point, initializes window, loads maze and textures, runs the main loop.
+- framebuffer.rs: Manages pixel buffer for drawing.
+- maze.rs: Loads maze layout from files.
+- caster.rs: Contains raycasting logic.
+- player.rs: Handles player state and input processing.
+- texture_manager.rs: Loads and manages textures and images.
+- line.rs: Implements line drawing algorithms.
+- assets/: Contains textures and maze files.
 
-### - Drawing Phase:
-        Update the buffer with new pixel data to be rendered.
+Technical Details
 
-### - Update the Window:
-        Send the buffer data to the window for display.
+- Uses raylib for window creation, input, and texture management.
+- Implements Bresenham's line algorithm for drawing lines.
+- Uses trigonometric functions and vector math for raycasting calculations.
+- Applies fisheye correction by adjusting ray distances with cosine of angle difference.
+- Manages textures efficiently by loading once and accessing pixel data in RAM.
 
-### - Calculate Frame Rate:
-        Track and display the frame rate (FPS) for performance monitoring.
+License
 
-## Step-by-Step Guide
-
-### 1. Initialization
-
-    Create a buffer to store pixel data.
-    Create a window using a window management library (e.g., minifb).
-
-### 2. Exit Condition
-
-    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
-
-### 3. Listening to User Input
-
-    Poll for user input (keyboard or mouse events) and handle accordingly.
-
-### 4. Clearing the Buffer
-
-    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
-
-### 5. Drawing Phase
-
-    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
-
-### 6. Update the Window
-
-    Render the contents of the buffer to the window, making the new frame visible on the screen.
-
-### 7. Calculate Frame Rate
-
-    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
-
-This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
+This project is licensed under the MIT License.
