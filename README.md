@@ -1,66 +1,23 @@
-# Lesson 3: Understanding the Main Render Loop
+Core Changes:
 
-In this lesson, we will dive into the core of real-time graphics: the main render loop. We will break down its components and understand how each part works together to create smooth, responsive graphics applications.
+1. **Modularization**: The codebase has been split into separate modules (`caster`, `player`) for better organization and maintainability.
 
-## Key Definitions
+2. **Enhanced Visualization**: The `cast_ray` function in `caster.rs` now implements raycasting, providing a 3D-like view of the maze.
 
-    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
-    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
-    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
-    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
+3. **Improved Player Control**: The addition of `player.rs` allows for more sophisticated player movement and rotation.
 
-## Main Parts of the Render Loop
+4. **Integration of Player Perspective**: The player's position and angle are now considered when rendering the maze, creating a first-person view effect.
 
-### - Initialization:
-        Set up necessary variables, buffers, and create the window.
+5. **Main Render Loop Implementation**: A new `render_world` function has been introduced, which replaces the previous `render_maze` function.
 
-### - Exit Condition:
-        Check for conditions that signal the end of the application, such as a specific key press or window close event.
+Direct Impacts:
 
-### - Listening to User Input:
-        Handle user inputs like keyboard and mouse events.
+1. **Performance Optimization**: Separating concerns between player control, raycasting, and maze rendering may allow for more efficient implementation and optimization.
 
-### - Clearing the Buffer:
-        Clear the buffer to prepare it for the new frame's pixel data.
+2. **Enhanced Graphics Capabilities**: The introduction of raycasting provides a 3D-like view of the maze, significantly improving the visual experience.
 
-### - Drawing Phase:
-        Update the buffer with new pixel data to be rendered.
+3. **Improved User Interaction**: The modular approach allows for more sophisticated player movement and rotation, enhancing the overall gameplay experience.
 
-### - Update the Window:
-        Send the buffer data to the window for display.
+4. **Flexible Rendering Options**: The addition of a "mode" toggle (2D/3D) gives users the ability to switch between different viewing perspectives.
 
-### - Calculate Frame Rate:
-        Track and display the frame rate (FPS) for performance monitoring.
-
-## Step-by-Step Guide
-
-### 1. Initialization
-
-    Create a buffer to store pixel data.
-    Create a window using a window management library (e.g., minifb).
-
-### 2. Exit Condition
-
-    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
-
-### 3. Listening to User Input
-
-    Poll for user input (keyboard or mouse events) and handle accordingly.
-
-### 4. Clearing the Buffer
-
-    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
-
-### 5. Drawing Phase
-
-    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
-
-### 6. Update the Window
-
-    Render the contents of the buffer to the window, making the new frame visible on the screen.
-
-### 7. Calculate Frame Rate
-
-    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
-
-This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
+5. **Advanced Game Mechanics**: The inclusion of a field of view (FOV) attribute in the Player struct opens up possibilities for implementing more complex game mechanics related to vision and perception.
