@@ -168,9 +168,11 @@ fn render_world(
         let a = player.a - (player.fov / 2.0) + (player.fov * current_ray);
         let intersect = cast_ray(framebuffer, &maze, &player, a, block_size, false);
 
-        let distance_to_wall = intersect.distance;
+        let angle_diff = a - player.a;
+        let corrected_distance = intersect.distance * angle_diff.cos();
+
         let distance_to_projection_plane = 70.0;
-        let stake_height = (hh / distance_to_wall) * distance_to_projection_plane;
+        let stake_height = (hh / corrected_distance) * distance_to_projection_plane;
 
         let stake_top = (hh - (stake_height / 2.0)) as usize;
         let stake_bottom = (hh + (stake_height / 2.0)) as usize;
