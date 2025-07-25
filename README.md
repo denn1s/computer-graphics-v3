@@ -1,66 +1,30 @@
-# Lesson 3: Understanding the Main Render Loop
+# Raytracer in Rust
 
-In this lesson, we will dive into the core of real-time graphics: the main render loop. We will break down its components and understand how each part works together to create smooth, responsive graphics applications.
+This project is a simple raytracer written in Rust using the `raylib` library. It is intended as an educational tool for students learning about computer graphics.
 
-## Key Definitions
+## What is a Raycaster?
 
-    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
-    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
-    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
-    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
+A raycaster is a rendering technique that creates a 3D perspective in a 2D map. The basic idea is to trace rays from the "eye" of the viewer through each pixel on the screen. The color of the pixel is then determined by what the ray hits in the scene.
 
-## Main Parts of the Render Loop
+This project implements a simple ray-sphere intersection algorithm to render a sphere on the screen.
 
-### - Initialization:
-        Set up necessary variables, buffers, and create the window.
+## How to run this code
 
-### - Exit Condition:
-        Check for conditions that signal the end of the application, such as a specific key press or window close event.
+To run this code, you will need to have Rust installed. You can find instructions on how to install Rust [here](https://www.rust-lang.org/tools/install).
 
-### - Listening to User Input:
-        Handle user inputs like keyboard and mouse events.
+Once you have Rust installed, you can clone this repository and run the following command in the root directory of the project:
 
-### - Clearing the Buffer:
-        Clear the buffer to prepare it for the new frame's pixel data.
+```bash
+cargo run --release
+```
 
-### - Drawing Phase:
-        Update the buffer with new pixel data to be rendered.
+This will compile and run the project. A window should appear with a rendered sphere.
 
-### - Update the Window:
-        Send the buffer data to the window for display.
+## File Structure
 
-### - Calculate Frame Rate:
-        Track and display the frame rate (FPS) for performance monitoring.
+The project is organized into the following files:
 
-## Step-by-Step Guide
-
-### 1. Initialization
-
-    Create a buffer to store pixel data.
-    Create a window using a window management library (e.g., minifb).
-
-### 2. Exit Condition
-
-    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
-
-### 3. Listening to User Input
-
-    Poll for user input (keyboard or mouse events) and handle accordingly.
-
-### 4. Clearing the Buffer
-
-    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
-
-### 5. Drawing Phase
-
-    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
-
-### 6. Update the Window
-
-    Render the contents of the buffer to the window, making the new frame visible on the screen.
-
-### 7. Calculate Frame Rate
-
-    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
-
-This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
+-   `src/main.rs`: This is the main entry point of the program. It initializes `raylib`, creates a window, and contains the main render loop.
+-   `src/framebuffer.rs`: This file contains the `Framebuffer` struct, which is used to store the rendered image before it is displayed on the screen.
+-   `src/ray_intersect.rs`: This file defines the `RayIntersect` trait, which is used to check if a ray intersects with an object in the scene.
+-   `src/sphere.rs`: This file contains the `Sphere` struct and its implementation of the `RayIntersect` trait.
