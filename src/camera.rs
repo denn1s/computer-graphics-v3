@@ -1,69 +1,55 @@
-use nalgebra_glm::Vec3;
-use std::f32::consts::PI;
+use raylib::prelude::*;
 
 pub struct Camera {
-    pub eye: Vec3,    // Camera position in world space
-    pub center: Vec3, // Point the camera is looking at
-    pub up: Vec3,     // Up vector
+    pub eye: Vector3,
+    pub center: Vector3,
+    pub up: Vector3,
+    pub forward: Vector3,
+    pub right: Vector3,
+    pub view_matrix: Matrix,
 }
 
 impl Camera {
-    pub fn new(eye: Vec3, center: Vec3, up: Vec3) -> Self {
-        Camera {
+    pub fn new(eye: Vector3, center: Vector3, up: Vector3) -> Self {
+        let mut camera = Camera {
             eye,
             center,
             up,
-        }
+            forward: Vector3::zero(),
+            right: Vector3::zero(),
+            view_matrix: Matrix::identity(),
+        };
+        camera.update_view_matrix();
+        camera
     }
 
-    pub fn basis_change(&self, vector: &Vec3) -> Vec3 {
-        let forward = (self.center - self.eye).normalize();
-        let right = forward.cross(&self.up).normalize();
-        let up = right.cross(&forward).normalize();
+    pub fn update_view_matrix(&mut self) {
+        self.forward = (self.center - self.eye).normalized();
+        self.right = self.forward.cross(self.up).normalized();
+        self.up = self.right.cross(self.forward); // Recalculate up vector
 
-        let rotated = 
-        vector.x * right +
-        vector.y * up -
-        vector.z * forward;
-
-        rotated.normalize()
+        self.view_matrix = Matrix::look_at(self.eye, self.center, self.up);
     }
 
-    pub fn orbit(&mut self, delta_yaw: f32, delta_pitch: f32) {
-        // Calculate the vector from the center to the eye (radius vector) and measure the distance
-        let radius_vector = self.eye - self.center;
-        let radius = radius_vector.magnitude();
+    pub fn orbit(&mut self, horizontal_angle: f32, vertical_angle: f32) {
+        let rotation_horizontal = Matrix::rotate(self.up, horizontal_angle);
+        let rotation_vertical = Matrix::rotate(self.right, vertical_angle);
 
-        // Calculate current yaw (rotation around Y-axis)
-        // atan2(z, x) gives us the angle in the XZ plane
-        // Range: [-π, π], where 0 is along positive X-axis, π/2 is along positive Z-axis
-        let current_yaw = radius_vector.z.atan2(radius_vector.x);
+        let new_eye = self.eye - self.center;
+        let mut new_eye_vec4 = Vector4::new(new_eye.x, new_eye.y, new_eye.z, 1.0);
 
-        // Calculate current pitch (rotation around X-axis)
-        // xz here refers to the proyection of the radius over the x axis
-        let radius_xz = (radius_vector.x * radius_vector.x + radius_vector.z * radius_vector.z).sqrt();
-        // We use -y because positive pitch is when we look up (negative y in our coordinate system)
-        // Range: [-π/2, π/2], where 0 is horizontal, π/2 is looking straight up
-        let current_pitch = (-radius_vector.y).atan2(radius_xz);
+        new_eye_vec4 = new_eye_vec4.transform(rotation_horizontal);
+        new_eye_vec4 = new_eye_vec4.transform(rotation_vertical);
 
-        // Apply delta rotations
-        // Keep yaw in range [0, 2π] for consistency
-        let new_yaw = (current_yaw + delta_yaw) % (2.0 * PI);
-        // Clamp pitch to slightly less than [-π/2, π/2] to prevent gimbal lock
-        let new_pitch = (current_pitch + delta_pitch).clamp(-PI / 2.0 + 0.1, PI / 2.0 - 0.1);
+        self.eye = self.center + Vector3::new(new_eye_vec4.x, new_eye_vec4.y, new_eye_vec4.z);
 
-        // Calculate new eye position
-        // We use spherical coordinates to cartesian conversion:
-        // x = r * cos(yaw) * cos(pitch)
-        // y = -r * sin(pitch)  // Negative because positive y is up
-        // z = r * sin(yaw) * cos(pitch)
+        self.update_view_matrix();
+    }
 
-        let new_eye = self.center + Vec3::new(
-            radius * new_yaw.cos() * new_pitch.cos(),
-            -radius * new_pitch.sin(),
-            radius * new_yaw.sin() * new_pitch.cos()
-        );
-
-        self.eye = new_eye;
+    pub fn basis_change(&self, v: &Vector3) -> Vector3 {
+        let inverted_view = self.view_matrix.inverted();
+        let v_homogeneous = Vector4::new(v.x, v.y, v.z, 0.0);
+        let rotated_v = v_homogeneous.transform(inverted_view);
+        Vector3::new(rotated_v.x, rotated_v.y, rotated_v.z)
     }
 }
