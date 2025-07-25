@@ -59,12 +59,17 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere]) {
 }
 
 fn main() {
-    let (mut rl, thread) = raylib::init()
-        .size(800, 600)
-        .title("Raytracer")
+    let window_width = 1300;
+    let window_height = 900;
+ 
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Raytracer Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
-    let mut framebuffer = Framebuffer::new(800, 600);
+
+    let mut framebuffer = Framebuffer::new(window_width  as u32, window_height as u32);
 
     let rubber = Material {
         diffuse: Color::new(80, 0, 0, 255),
@@ -87,14 +92,11 @@ fn main() {
         },
     ];
 
-    while !rl.window_should_close() {
+    while !window.window_should_close() {
+        framebuffer.clear();
+
         render(&mut framebuffer, &objects);
 
-        let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::BLACK);
-        let texture = d
-            .load_texture_from_image(&thread, &framebuffer.color_buffer)
-            .unwrap();
-        d.draw_texture(&texture, 0, 0, Color::WHITE);
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
     }
 }
