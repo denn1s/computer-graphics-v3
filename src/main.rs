@@ -1,6 +1,5 @@
 use raylib::prelude::*;
 use std::f32::consts::PI;
-use std::sync::Arc;
 
 mod framebuffer;
 mod ray_intersect;
@@ -8,7 +7,7 @@ mod sphere;
 mod camera;
 mod light;
 mod material;
-mod texture;
+mod textures;
 
 use framebuffer::Framebuffer;
 use ray_intersect::{Intersect, RayIntersect};
@@ -16,7 +15,7 @@ use sphere::Sphere;
 use camera::Camera;
 use light::Light;
 use material::Material;
-use texture::Texture;
+use textures::TextureManager;
 
 const ORIGIN_BIAS: f32 = 1e-4;
 const SKYBOX_COLOR: Color = Color::new(68, 142, 228, 255);
@@ -81,6 +80,7 @@ pub fn cast_ray(
     ray_direction: &Vector3,
     objects: &[Sphere],
     light: &Light,
+    texture_manager: &TextureManager,
     depth: u32,
 ) -> Color {
     if depth > 3 {
@@ -109,7 +109,16 @@ pub fn cast_ray(
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    let diffuse_color = intersect.material.get_diffuse_color(intersect.u, intersect.v);
+    let diffuse_color = if let Some(texture_id) = intersect.material.texture_id {
+        let width = texture_manager.get_texture(texture_id).unwrap().width() as u32;
+        let height = texture_manager.get_texture(texture_id).unwrap().height() as u32;
+        let tx = (intersect.u * width as f32) as u32;
+        let ty = (intersect.v * height as f32) as u32;
+        texture_manager.get_pixel_color(texture_id, tx, ty)
+    } else {
+        intersect.material.diffuse
+    };
+
     let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0);
     let diffuse = Color::new(
         (diffuse_color.r as f32 * diffuse_intensity * light_intensity) as u8,
@@ -132,7 +141,7 @@ pub fn cast_ray(
     if reflectivity > 0.0 {
         let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
         let reflect_origin = offset_origin(&intersect, &reflect_dir);
-        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
+        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1);
     }
 
     let mut refract_color = Color::BLACK;
@@ -140,7 +149,7 @@ pub fn cast_ray(
     if transparency > 0.0 {
         let refract_dir = refract(ray_direction, &intersect.normal, intersect.material.refractive_index);
         let refract_origin = offset_origin(&intersect, &refract_dir);
-        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
+        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1);
     }
 
     let albedo = intersect.material.albedo;
@@ -159,7 +168,7 @@ pub fn cast_ray(
     )
 }
 
-pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
+pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light, texture_manager: &TextureManager) {
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let aspect_ratio = width / height;
@@ -178,7 +187,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             
             let rotated_direction = camera.basis_change(&ray_direction);
 
-            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light, 0);
+            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, 0);
 
             framebuffer.set_current_color(pixel_color);
             framebuffer.set_pixel(x, y);
@@ -196,14 +205,15 @@ fn main() {
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
+    let texture_manager = TextureManager::new(&mut window, &thread);
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
-    let ball_texture = Arc::new(Texture::new("assets/ball.png"));
-    let rubber = Material::new_with_texture(
-        ball_texture,
+    let rubber = Material::new(
+        Color::new(80, 0, 0, 255),
         1.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
+        Some('+'),
     );
 
     let ivory = Material::new(
@@ -211,6 +221,7 @@ fn main() {
         50.0,
         [0.6, 0.3, 0.1, 0.0],
         0.0,
+        None,
     );
 
     let glass = Material::new(
@@ -218,6 +229,7 @@ fn main() {
         1425.0,
         [0.0, 0.5, 0.1, 0.8],
         1.5,
+        None,
     );
 
     let objects = [
@@ -261,7 +273,7 @@ fn main() {
         }
 
         if camera.is_changed() {
-            render(&mut framebuffer, &objects, &camera, &light);
+            render(&mut framebuffer, &objects, &camera, &light, &texture_manager);
         }
         
         framebuffer.swap_buffers(&mut window, &thread);
