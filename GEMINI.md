@@ -24,3 +24,4 @@ When working with this project, please follow these instructions:
         framebuffer.swap_buffers(&mut window, &raylib_thread);
     }
     ```
+-   **Verification:** After making any code changes, compile the project by running `cargo build`. If any errors occur, you must fix them before finishing your task.
