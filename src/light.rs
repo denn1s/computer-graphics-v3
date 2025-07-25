@@ -1,14 +1,13 @@
-use nalgebra_glm::Vec3;
-use crate::color::Color;
+use raylib::prelude::*;
 
 pub struct Light {
-    pub position: Vec3,
+    pub position: Vector3,
     pub color: Color,
     pub intensity: f32,
 }
 
 impl Light {
-    pub fn new(position: Vec3, color: Color, intensity: f32) -> Self {
+    pub fn new(position: Vector3, color: Color, intensity: f32) -> Self {
         Light {
             position,
             color,
