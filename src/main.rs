@@ -65,7 +65,7 @@ fn main() {
     let window_width = 1300;
     let window_height = 900;
  
-    let (mut rl, thread) = raylib::init()
+    let (mut window, thread) = raylib::init()
         .size(window_width, window_height)
         .title("Raytracer Example")
         .log_level(TraceLogLevel::LOG_WARNING)
@@ -101,27 +101,25 @@ fn main() {
     );
     let rotation_speed = PI / 100.0;
 
-    while !rl.window_should_close() {
-        if rl.is_key_down(KeyboardKey::KEY_LEFT) {
+    while !window.window_should_close() {
+        if window.is_key_down(KeyboardKey::KEY_LEFT) {
             camera.orbit(rotation_speed, 0.0);
         }
-        if rl.is_key_down(KeyboardKey::KEY_RIGHT) {
+        if window.is_key_down(KeyboardKey::KEY_RIGHT) {
             camera.orbit(-rotation_speed, 0.0);
         }
-        if rl.is_key_down(KeyboardKey::KEY_UP) {
+        if window.is_key_down(KeyboardKey::KEY_UP) {
             camera.orbit(0.0, -rotation_speed);
         }
-        if rl.is_key_down(KeyboardKey::KEY_DOWN) {
+        if window.is_key_down(KeyboardKey::KEY_DOWN) {
             camera.orbit(0.0, rotation_speed);
         }
 
+        framebuffer.clear();
+
         render(&mut framebuffer, &objects, &camera);
 
-        let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::BLACK);
-        let texture = d
-            .load_texture_from_image(&thread, &framebuffer.color_buffer)
-            .unwrap();
-        d.draw_texture(&texture, 0, 0, Color::WHITE);
+        framebuffer.swap_buffers(&mut window, &thread);
+
     }
 }
