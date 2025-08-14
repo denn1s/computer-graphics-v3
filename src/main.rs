@@ -14,11 +14,11 @@ use ray_intersect::{Intersect, RayIntersect};
 use sphere::Sphere;
 use camera::Camera;
 use light::Light;
-use material::Material;
+use material::{Material, vector3_to_color};
 use textures::TextureManager;
 
 const ORIGIN_BIAS: f32 = 1e-4;
-const SKYBOX_COLOR: Color = Color::new(68, 142, 228, 255);
+const SKYBOX_COLOR: Vector3 = Vector3::new(0.26, 0.55, 0.89);
 
 fn offset_origin(intersect: &Intersect, direction: &Vector3) -> Vector3 {
     let offset = intersect.normal * ORIGIN_BIAS;
@@ -33,25 +33,26 @@ fn reflect(incident: &Vector3, normal: &Vector3) -> Vector3 {
     *incident - *normal * 2.0 * incident.dot(*normal)
 }
 
-fn refract(incident: &Vector3, normal: &Vector3, eta_t: f32) -> Vector3 {
-    let cosi = -incident.dot(*normal).max(-1.0).min(1.0);
-    
-    let (eta, n_normal);
+fn refract(incident: &Vector3, normal: &Vector3, refractive_index: f32) -> Option<Vector3> {
+    let mut cosi = incident.dot(*normal).max(-1.0).min(1.0);
+    let mut etai = 1.0;
+    let mut etat = refractive_index;
+    let mut n = *normal;
 
-    if cosi < 0.0 {
-        eta = 1.0 / eta_t;
-        n_normal = *normal;
+    if cosi > 0.0 {
+        std::mem::swap(&mut etai, &mut etat);
+        n = -n;
     } else {
-        eta = eta_t;
-        n_normal = -*normal;
+        cosi = -cosi;
     }
-    
+
+    let eta = etai / etat;
     let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
-    
+
     if k < 0.0 {
-        reflect(incident, &n_normal)
+        None
     } else {
-        *incident * eta + n_normal * (eta * cosi.abs() - k.sqrt())
+        Some(*incident * eta + n * (eta * cosi - k.sqrt()))
     }
 }
 
@@ -68,11 +69,11 @@ fn cast_shadow(
     for object in objects {
         let shadow_intersect = object.ray_intersect(&shadow_ray_origin, &light_dir);
         if shadow_intersect.is_intersecting && shadow_intersect.distance < light_distance {
-            return 1.0; // Hit something, full shadow
+            return 1.0;
         }
     }
 
-    0.0 // No shadow
+    0.0
 }
 
 pub fn cast_ray(
@@ -82,7 +83,7 @@ pub fn cast_ray(
     light: &Light,
     texture_manager: &TextureManager,
     depth: u32,
-) -> Color {
+) -> Vector3 {
     if depth > 3 {
         return SKYBOX_COLOR;
     }
@@ -114,58 +115,46 @@ pub fn cast_ray(
         let height = texture_manager.get_texture(texture_id).unwrap().height() as u32;
         let tx = (intersect.u * width as f32) as u32;
         let ty = (intersect.v * height as f32) as u32;
-        texture_manager.get_pixel_color(texture_id, tx, ty)
+        let color = texture_manager.get_pixel_color(texture_id, tx, ty);
+        Vector3::new(color.r as f32 / 255.0, color.g as f32 / 255.0, color.b as f32 / 255.0)
     } else {
         intersect.material.diffuse
     };
 
-    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0);
-    let diffuse = Color::new(
-        (diffuse_color.r as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.g as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.b as f32 * diffuse_intensity * light_intensity) as u8,
-        255,
-    );
+    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0) * light_intensity;
+    let diffuse = diffuse_color * diffuse_intensity;
 
-    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular);
-    let specular_color = light.color;
-    let specular = Color::new(
-        (specular_color.r as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.g as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.b as f32 * specular_intensity * light_intensity) as u8,
-        255,
-    );
-
-    let mut reflect_color = Color::BLACK;
-    let reflectivity = intersect.material.albedo[2];
-    if reflectivity > 0.0 {
-        let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
-        let reflect_origin = offset_origin(&intersect, &reflect_dir);
-        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1);
-    }
-
-    let mut refract_color = Color::BLACK;
-    let transparency = intersect.material.albedo[3];
-    if transparency > 0.0 {
-        let refract_dir = refract(ray_direction, &intersect.normal, intersect.material.refractive_index);
-        let refract_origin = offset_origin(&intersect, &refract_dir);
-        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1);
-    }
+    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light_intensity;
+    let light_color_v3 = Vector3::new(light.color.r as f32 / 255.0, light.color.g as f32 / 255.0, light.color.b as f32 / 255.0);
+    let specular = light_color_v3 * specular_intensity;
 
     let albedo = intersect.material.albedo;
-    let base_color = Color::new(
-        (diffuse.r as f32 * albedo[0] + specular.r as f32 * albedo[1]) as u8,
-        (diffuse.g as f32 * albedo[0] + specular.g as f32 * albedo[1]) as u8,
-        (diffuse.b as f32 * albedo[0] + specular.b as f32 * albedo[1]) as u8,
-        255,
-    );
+    let phong_color = diffuse * albedo[0] + specular * albedo[1];
 
-    Color::new(
-        (base_color.r as f32 * (1.0 - reflectivity - transparency) + reflect_color.r as f32 * reflectivity + refract_color.r as f32 * transparency) as u8,
-        (base_color.g as f32 * (1.0 - reflectivity - transparency) + reflect_color.g as f32 * reflectivity + refract_color.g as f32 * transparency) as u8,
-        (base_color.b as f32 * (1.0 - reflectivity - transparency) + reflect_color.b as f32 * reflectivity + refract_color.b as f32 * transparency) as u8,
-        255,
-    )
+    let reflectivity = intersect.material.albedo[2];
+    let reflect_color = if reflectivity > 0.0 {
+        let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+        let reflect_origin = offset_origin(&intersect, &reflect_dir);
+        cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
+    } else {
+        Vector3::zero()
+    };
+
+    let transparency = intersect.material.albedo[3];
+    let refract_color = if transparency > 0.0 {
+        if let Some(refract_dir) = refract(ray_direction, &intersect.normal, intersect.material.refractive_index) {
+            let refract_origin = offset_origin(&intersect, &refract_dir);
+            cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1)
+        } else {
+            let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+            let reflect_origin = offset_origin(&intersect, &reflect_dir);
+            cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
+        }
+    } else {
+        Vector3::zero()
+    };
+
+    phong_color * (1.0 - reflectivity - transparency) + reflect_color * reflectivity + refract_color * transparency
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light, texture_manager: &TextureManager) {
@@ -187,7 +176,8 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             
             let rotated_direction = camera.basis_change(&ray_direction);
 
-            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, 0);
+            let pixel_color_v3 = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, 0);
+            let pixel_color = vector3_to_color(pixel_color_v3);
 
             framebuffer.set_current_color(pixel_color);
             framebuffer.set_pixel(x, y);
@@ -209,15 +199,15 @@ fn main() {
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     let rubber = Material::new(
-        Color::new(80, 0, 0, 255),
-        1.0,
+        Vector3::new(0.3, 0.1, 0.1),
+        10.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
         Some('+'),
     );
 
     let ivory = Material::new(
-        Color::new(100, 100, 80, 255),
+        Vector3::new(0.4, 0.4, 0.3),
         50.0,
         [0.6, 0.3, 0.1, 0.0],
         0.0,
@@ -225,8 +215,8 @@ fn main() {
     );
 
     let glass = Material::new(
-        Color::new(255, 255, 255, 255),
-        1425.0,
+        Vector3::new(0.6, 0.7, 0.8),
+        125.0,
         [0.0, 0.5, 0.1, 0.8],
         1.5,
         None,
@@ -249,7 +239,7 @@ fn main() {
     let light = Light::new(
         Vector3::new(1.0, -1.0, 5.0),
         Color::new(255, 255, 255, 255),
-        1.0,
+        1.5,
     );
 
     while !window.window_should_close() {
