@@ -1,14 +1,14 @@
-use raylib::prelude::Color;
+use raylib::prelude::{Color, Vector3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Material {
-    pub diffuse: Color,
+    pub diffuse: Vector3,
     pub albedo: [f32; 2],
     pub specular: f32,
 }
 
 impl Material {
-    pub fn new(diffuse: Color, specular: f32, albedo: [f32; 2]) -> Self {
+    pub fn new(diffuse: Vector3, specular: f32, albedo: [f32; 2]) -> Self {
         Material {
             diffuse,
             albedo,
@@ -18,9 +18,18 @@ impl Material {
 
     pub fn black() -> Self {
         Material {
-            diffuse: Color::BLACK,
+            diffuse: Vector3::zero(),
             albedo: [0.0, 0.0],
             specular: 0.0,
         }
     }
+}
+
+pub fn vector3_to_color(v: Vector3) -> Color {
+    Color::new(
+        (v.x * 255.0).min(255.0) as u8,
+        (v.y * 255.0).min(255.0) as u8,
+        (v.z * 255.0).min(255.0) as u8,
+        255,
+    )
 }

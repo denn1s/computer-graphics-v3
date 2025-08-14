@@ -7,15 +7,13 @@ mod sphere;
 mod camera;
 mod light;
 mod material;
-mod color_ops;
 
 use framebuffer::Framebuffer;
 use ray_intersect::{Intersect, RayIntersect};
 use sphere::Sphere;
 use camera::Camera;
 use light::Light;
-use material::Material;
-use color_ops::ColorOps;
+use material::{Material, vector3_to_color};
 
 fn reflect(incident: &Vector3, normal: &Vector3) -> Vector3 {
     *incident - *normal * 2.0 * incident.dot(*normal)
@@ -47,16 +45,16 @@ pub fn cast_ray(
     let reflect_dir = reflect(&-light_dir, &intersect.normal);
 
     let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0) * light.intensity;
-    let diffuse = intersect.material.diffuse.mult_f32(diffuse_intensity);
+    let diffuse = intersect.material.diffuse * diffuse_intensity;
 
     let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light.intensity;
-    let specular = light.color.mult_f32(specular_intensity);
+    let light_color_v3 = Vector3::new(light.color.r as f32 / 255.0, light.color.g as f32 / 255.0, light.color.b as f32 / 255.0);
+    let specular = light_color_v3 * specular_intensity;
     
     let albedo = intersect.material.albedo;
-    let diffuse_component = diffuse.mult_f32(albedo[0]);
-    let specular_component = specular.mult_f32(albedo[1]);
+    let final_color_v3 = diffuse * albedo[0] + specular * albedo[1];
 
-    diffuse_component.tint(specular_component)
+    vector3_to_color(final_color_v3)
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -99,13 +97,13 @@ fn main() {
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     let rubber = Material::new(
-        Color::new(80, 0, 0, 255),
-        1.0,
+        Vector3::new(0.3, 0.1, 0.1),
+        10.0,
         [0.9, 0.1],
     );
 
     let ivory = Material::new(
-        Color::new(100, 100, 80, 255),
+        Vector3::new(0.4, 0.4, 0.3),
         50.0,
         [0.6, 0.3],
     );
@@ -133,7 +131,7 @@ fn main() {
     let light = Light::new(
         Vector3::new(5.0, 5.0, 5.0),
         Color::new(255, 255, 255, 255),
-        1.0,
+        1.5,
     );
 
     while !window.window_should_close() {
