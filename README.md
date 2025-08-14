@@ -71,6 +71,29 @@ Implementing the Phong model requires several key vector operations:
 
 These components are calculated and then combined to produce the final color of the pixel, giving the rendered objects a simple but effective illusion of depth and material.
 
+## Shadows
+
+To add another layer of realism, this ray tracer implements hard shadows. A point on a surface is in shadow if it is blocked from the light source by another object.
+
+### Shadow Rays
+
+The core idea is simple: from the point of intersection on a surface, we cast a second ray, called a **shadow ray**, towards the light source.
+
+*   **Linear Algebra for Shadows**: The primary operation is another **ray-object intersection test**. We create a new ray starting from the surface point and pointing in the direction of the light. We then check if this ray hits any other object in the scene.
+
+*   **Condition for Shadow**: If the shadow ray intersects an object before it reaches the light source, the point is in shadow. If the ray reaches the light source without any intersections, the point is lit.
+
+### Shadow Acne and Bias
+
+A common problem when implementing shadows is a graphical artifact called **shadow acne**. This happens when a shadow ray accidentally intersects the very same surface it originated from, due to floating-point precision errors. This causes the surface to incorrectly shadow itself, creating a speckled or "acne-like" pattern.
+
+To solve this, we use a **shadow bias**. We slightly offset the starting point of the shadow ray along the surface normal. This pushes the ray's origin just enough to avoid an immediate self-intersection.
+
+*   In `cast_shadow`, we calculate an `offset_normal` by multiplying the surface normal by a small `SHADOW_BIAS` value.
+*   This offset is then added to the intersection point, giving us a safe starting position for the shadow ray.
+
+The final light intensity is then attenuated based on whether the point is in shadow, and this adjusted intensity is used in the Phong lighting calculation.
+
 ## How to run this code
 
 To run this code, you will need to have Rust installed. You can find instructions on how to install Rust [here](https://www.rust-lang.org/tools/install).
@@ -89,6 +112,7 @@ The project is organized into the following files:
 
 -   `src/main.rs`: The main entry point of the program. It initializes `raylib`, creates a window, and contains the main render loop and lighting calculations.
 -   `src/camera.rs`: Implements the orbit camera, including its orientation and movement logic.
+-   `src/color_ops.rs`: Defines the `ColorOps` trait to provide additional operations for `raylib::Color`.
 -   `src/framebuffer.rs`: This file contains the `Framebuffer` struct, which is used to store the rendered image before it is displayed on the screen.
 -   `src/light.rs`: Defines the `Light` struct, representing a light source in the scene.
 -   `src/material.rs`: Defines the `Material` struct, which describes the properties of a surface (diffuse color, specularity).
