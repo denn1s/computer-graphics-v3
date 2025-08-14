@@ -13,10 +13,10 @@ use ray_intersect::{Intersect, RayIntersect};
 use sphere::Sphere;
 use camera::Camera;
 use light::Light;
-use material::Material;
+use material::{Material, vector3_to_color};
 
 const ORIGIN_BIAS: f32 = 1e-4;
-const SKYBOX_COLOR: Color = Color::new(68, 142, 228, 255);
+const SKYBOX_COLOR: Vector3 = Vector3::new(0.26, 0.55, 0.89);
 
 fn offset_origin(intersect: &Intersect, direction: &Vector3) -> Vector3 {
     let offset = intersect.normal * ORIGIN_BIAS;
@@ -79,7 +79,7 @@ pub fn cast_ray(
     objects: &[Sphere],
     light: &Light,
     depth: u32,
-) -> Color {
+) -> Vector3 {
     if depth > 3 {
         return SKYBOX_COLOR;
     }
@@ -106,25 +106,14 @@ pub fn cast_ray(
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0);
-    let diffuse_color = intersect.material.diffuse;
-    let diffuse = Color::new(
-        (diffuse_color.r as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.g as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.b as f32 * diffuse_intensity * light_intensity) as u8,
-        255,
-    );
+    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0) * light_intensity;
+    let diffuse = intersect.material.diffuse * diffuse_intensity;
 
-    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular);
-    let specular_color = light.color;
-    let specular = Color::new(
-        (specular_color.r as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.g as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.b as f32 * specular_intensity * light_intensity) as u8,
-        255,
-    );
+    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light_intensity;
+    let light_color_v3 = Vector3::new(light.color.r as f32 / 255.0, light.color.g as f32 / 255.0, light.color.b as f32 / 255.0);
+    let specular = light_color_v3 * specular_intensity;
 
-    let mut reflect_color = Color::BLACK;
+    let mut reflect_color = SKYBOX_COLOR;
     let reflectivity = intersect.material.albedo[2];
     if reflectivity > 0.0 {
         let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
@@ -132,7 +121,7 @@ pub fn cast_ray(
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
 
-    let mut refract_color = Color::BLACK;
+    let mut refract_color = SKYBOX_COLOR;
     let transparency = intersect.material.albedo[3];
     if transparency > 0.0 {
         let refract_dir = refract(ray_direction, &intersect.normal, intersect.material.refractive_index);
@@ -141,19 +130,9 @@ pub fn cast_ray(
     }
 
     let albedo = intersect.material.albedo;
-    let base_color = Color::new(
-        (diffuse.r as f32 * albedo[0] + specular.r as f32 * albedo[1]) as u8,
-        (diffuse.g as f32 * albedo[0] + specular.g as f32 * albedo[1]) as u8,
-        (diffuse.b as f32 * albedo[0] + specular.b as f32 * albedo[1]) as u8,
-        255,
-    );
+    let phong_color = diffuse * albedo[0] + specular * albedo[1];
 
-    Color::new(
-        (base_color.r as f32 * (1.0 - reflectivity - transparency) + reflect_color.r as f32 * reflectivity + refract_color.r as f32 * transparency) as u8,
-        (base_color.g as f32 * (1.0 - reflectivity - transparency) + reflect_color.g as f32 * reflectivity + refract_color.g as f32 * transparency) as u8,
-        (base_color.b as f32 * (1.0 - reflectivity - transparency) + reflect_color.b as f32 * reflectivity + refract_color.b as f32 * transparency) as u8,
-        255,
-    )
+    phong_color * (1.0 - reflectivity - transparency) + reflect_color * reflectivity + refract_color * transparency
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -175,7 +154,8 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             
             let rotated_direction = camera.basis_change(&ray_direction);
 
-            let pixel_color = cast_ray(&camera.eye, &rotated_direction, objects, light, 0);
+            let pixel_color_v3 = cast_ray(&camera.eye, &rotated_direction, objects, light, 0);
+            let pixel_color = vector3_to_color(pixel_color_v3);
 
             framebuffer.set_current_color(pixel_color);
             framebuffer.set_pixel(x, y);
@@ -196,22 +176,22 @@ fn main() {
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     let rubber = Material::new(
-        Color::new(80, 0, 0, 255),
-        1.0,
+        Vector3::new(0.3, 0.1, 0.1),
+        10.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
     );
 
     let ivory = Material::new(
-        Color::new(100, 100, 80, 255),
+        Vector3::new(0.4, 0.4, 0.3),
         50.0,
         [0.6, 0.3, 0.1, 0.0],
         0.0,
     );
 
     let glass = Material::new(
-        Color::new(255, 255, 255, 255),
-        1425.0,
+        Vector3::new(0.6, 0.7, 0.8),
+        125.0,
         [0.0, 0.5, 0.1, 0.8],
         1.5,
     );
@@ -232,7 +212,7 @@ fn main() {
     let light = Light::new(
         Vector3::new(1.0, -1.0, 5.0),
         Color::new(255, 255, 255, 255),
-        1.0,
+        1.5,
     );
 
     while !window.window_should_close() {
