@@ -1,9 +1,5 @@
-use raylib::prelude::{Color, Vector3};
-
-#[derive(Debug, Clone, Copy)]
-pub struct Material {
-    pub diffuse: Color,
-}
+use raylib::prelude::Vector3;
+use crate::material::Material;
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -33,7 +29,7 @@ impl Intersect {
             distance: 0.0,
             is_intersecting: false,
             material: Material {
-                diffuse: Color::new(0, 0, 0, 0),
+                diffuse: Vector3::zero(),
             },
         }
     }

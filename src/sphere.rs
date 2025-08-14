@@ -1,5 +1,6 @@
+use crate::material::Material;
+use crate::ray_intersect::{Intersect, RayIntersect};
 use raylib::prelude::Vector3;
-use crate::ray_intersect::{Intersect, Material, RayIntersect};
 
 pub struct Sphere {
     pub center: Vector3,
