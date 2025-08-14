@@ -57,6 +57,8 @@ The Phong model simulates how light interacts with a surface by breaking it down
 
 Implementing the Phong model requires several key vector operations:
 
+*   **Vector as Color**: In this implementation, we use `Vector3` to represent colors during the lighting calculations. This allows us to use standard vector operations like multiplication and addition directly on the colors. The `x`, `y`, and `z` components of the vector correspond to the R, G, and B channels of the color. At the end of the `cast_ray` function, the final `Vector3` is converted back to a `raylib::Color`.
+
 *   **Normalization**: To ensure our calculations are based on directions rather than magnitudes, we use normalized (unit) vectors for:
     *   `light_dir`: The direction from the point on the surface to the light source.
     *   `view_dir`: The direction from the point on the surface to the camera.
@@ -94,6 +96,43 @@ To solve this, we use a **shadow bias**. We slightly offset the starting point o
 
 The final light intensity is then attenuated based on whether the point is in shadow, and this adjusted intensity is used in the Phong lighting calculation.
 
+## Reflections
+
+To create surfaces that look like mirrors, we need to implement reflections. This is where ray tracing truly becomes recursive.
+
+### Recursive Ray Tracing
+
+When a ray hits a reflective surface, we need to figure out what color it "sees" in the reflection. We do this by casting a new ray from the intersection point in the direction of the reflection. The color returned by this new ray is then blended with the object's own color.
+
+*   **Linear Algebra for Reflection**: The key is to calculate the reflection direction. This is done with the same `reflect` function we used for specular highlights. This time, instead of reflecting the light direction, we reflect the *viewing direction* (the ray coming from the camera). The formula `R = V - 2 * N * dot(V, N)` gives us the new direction for our reflection ray, where `V` is the incoming view vector and `N` is the surface normal.
+
+*   **Blending Colors**: The `albedo` property of our `Material` now has a third component that controls the reflectivity of the surface. The final color is a blend of the object's Phong color and the color returned by the reflection ray, weighted by this reflectivity value.
+
+### Recursion Depth
+
+Casting a ray that hits a mirror, which reflects another mirror, could lead to an infinite loop of reflections. To prevent this, we add a `depth` parameter to our `cast_ray` function. Each time we cast a reflection ray, we increment the depth. If the depth exceeds a certain limit, we stop recursing and return a default background color. This ensures the program doesn't get stuck in an infinite loop.
+
+## Refractions
+
+Refraction is the bending of light as it passes from one medium to another, like from air to water or glass. This is what makes objects appear distorted when viewed through a transparent material.
+
+### Snell's Law
+
+The direction of the refracted ray is calculated using Snell's Law. For students who might have zoned out during this part of physics or linear algebra, here's the gist:
+
+*   **Refractive Index**: Every transparent material has a `refractive_index` that describes how much it slows down light. Air is typically ~1.0, water is ~1.33, and glass is ~1.5.
+*   **The Bend**: Snell's Law uses the incoming ray's direction, the surface normal, and the ratio of the two materials' refractive indices to calculate the new, bent direction of the ray. Our `refract` function implements this calculation.
+
+### Total Internal Reflection
+
+Sometimes, when light tries to exit a dense medium (like glass) into a less dense one (like air) at a very shallow angle, it can't escape and reflects back inside instead. This is called **Total Internal Reflection**.
+
+Our `refract` function automatically handles this. If the calculation for the refracted ray has no real solution (which happens when the light hits at that shallow angle), the function instead returns the *reflection* direction. This is why our glass sphere might look like a perfect mirror from certain angles.
+
+### Blending and Recursion
+
+Just like with reflections, we cast a new ray in the refracted direction and recursively call `cast_ray`. The `albedo` property of our `Material` now has a fourth component that controls the transparency of the surface. The final color is a blend of the Phong color, the reflected color, and the refracted color, all weighted by their respective albedo values.
+
 ## How to run this code
 
 To run this code, you will need to have Rust installed. You can find instructions on how to install Rust [here](https://www.rust-lang.org/tools/install).
@@ -112,9 +151,8 @@ The project is organized into the following files:
 
 -   `src/main.rs`: The main entry point of the program. It initializes `raylib`, creates a window, and contains the main render loop and lighting calculations.
 -   `src/camera.rs`: Implements the orbit camera, including its orientation and movement logic.
--   `src/color_ops.rs`: Defines the `ColorOps` trait to provide additional operations for `raylib::Color`.
 -   `src/framebuffer.rs`: This file contains the `Framebuffer` struct, which is used to store the rendered image before it is displayed on the screen.
 -   `src/light.rs`: Defines the `Light` struct, representing a light source in the scene.
--   `src/material.rs`: Defines the `Material` struct, which describes the properties of a surface (diffuse color, specularity).
+-   `src/material.rs`: Defines the `Material` struct and the `vector3_to_color` conversion function.
 -   `src/ray_intersect.rs`: This file defines the `RayIntersect` trait, which is used to check if a ray intersects with an object in the scene.
 -   `src/sphere.rs`: This file contains the `Sphere` struct and its implementation of the `RayIntersect` trait.

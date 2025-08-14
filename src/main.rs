@@ -31,25 +31,45 @@ fn reflect(incident: &Vector3, normal: &Vector3) -> Vector3 {
     *incident - *normal * 2.0 * incident.dot(*normal)
 }
 
-fn refract(incident: &Vector3, normal: &Vector3, eta_t: f32) -> Vector3 {
-    let cosi = -incident.dot(*normal).max(-1.0).min(1.0);
-    
-    let (eta, n_normal);
+fn refract(incident: &Vector3, normal: &Vector3, refractive_index: f32) -> Option<Vector3> {
+    // Implementation of Snell's Law for refraction.
+    // It calculates the direction of a ray as it passes from one medium to another.
 
-    if cosi < 0.0 {
-        eta = 1.0 / eta_t;
-        n_normal = *normal;
+    // `cosi` is the cosine of the angle between the incident ray and the normal.
+    // We clamp it to the [-1, 1] range to avoid floating point errors.
+    let mut cosi = incident.dot(*normal).max(-1.0).min(1.0);
+
+    // `etai` is the refractive index of the medium the ray is currently in.
+    // `etat` is the refractive index of the medium the ray is entering.
+    // `n` is the normal vector, which may be flipped depending on the ray's direction.
+    let mut etai = 1.0; // Assume we are in Air (or vacuum) initially
+    let mut etat = refractive_index;
+    let mut n = *normal;
+
+    if cosi > 0.0 {
+        // The ray is inside the medium (e.g., glass) and going out into the air.
+        // We need to swap the refractive indices.
+        std::mem::swap(&mut etai, &mut etat);
+        // We also flip the normal so it points away from the medium.
+        n = -n;
     } else {
-        eta = eta_t;
-        n_normal = -*normal;
+        // The ray is outside the medium and going in.
+        // We need a positive cosine for the calculation, so we negate it.
+        cosi = -cosi;
     }
-    
+
+    // `eta` is the ratio of the refractive indices (n1 / n2).
+    let eta = etai / etat;
+    // `k` is a term derived from Snell's law that helps determine if total internal reflection occurs.
     let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
-    
+
     if k < 0.0 {
-        reflect(incident, &n_normal)
+        // If k is negative, it means total internal reflection has occurred.
+        // There is no refracted ray, so we return None.
+        None
     } else {
-        *incident * eta + n_normal * (eta * cosi.abs() - k.sqrt())
+        // If k is non-negative, we can calculate the direction of the refracted ray.
+        Some(*incident * eta + n * (eta * cosi - k.sqrt()))
     }
 }
 
@@ -113,25 +133,40 @@ pub fn cast_ray(
     let light_color_v3 = Vector3::new(light.color.r as f32 / 255.0, light.color.g as f32 / 255.0, light.color.b as f32 / 255.0);
     let specular = light_color_v3 * specular_intensity;
 
-    let mut reflect_color = SKYBOX_COLOR;
-    let reflectivity = intersect.material.albedo[2];
-    if reflectivity > 0.0 {
-        let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
-        let reflect_origin = offset_origin(&intersect, &reflect_dir);
-        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
-    }
-
-    let mut refract_color = SKYBOX_COLOR;
-    let transparency = intersect.material.albedo[3];
-    if transparency > 0.0 {
-        let refract_dir = refract(ray_direction, &intersect.normal, intersect.material.refractive_index);
-        let refract_origin = offset_origin(&intersect, &refract_dir);
-        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
-    }
-
     let albedo = intersect.material.albedo;
     let phong_color = diffuse * albedo[0] + specular * albedo[1];
 
+    // Reflections
+    let reflectivity = intersect.material.albedo[2];
+    let reflect_color = if reflectivity > 0.0 {
+        let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+        let reflect_origin = offset_origin(&intersect, &reflect_dir);
+        cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1)
+    } else {
+        Vector3::zero()
+    };
+
+    // Refractions
+    let transparency = intersect.material.albedo[3];
+    let refract_color = if transparency > 0.0 {
+        // Calculate the refracted ray direction. This can fail (return None) in case of total internal reflection.
+        if let Some(refract_dir) = refract(ray_direction, &intersect.normal, intersect.material.refractive_index) {
+            // If refraction is possible, cast a new ray.
+            let refract_origin = offset_origin(&intersect, &refract_dir);
+            cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1)
+        } else {
+            // Total internal reflection occurred. In this case, the light is perfectly reflected.
+            // We cast a reflection ray instead of a refraction ray.
+            let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+            let reflect_origin = offset_origin(&intersect, &reflect_dir);
+            cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1)
+        }
+    } else {
+        // If the material is not transparent, the refracted color is black.
+        Vector3::zero()
+    };
+
+    // Combine the Phong color with the reflected and refracted colors using the material's albedo values.
     phong_color * (1.0 - reflectivity - transparency) + reflect_color * reflectivity + refract_color * transparency
 }
 
