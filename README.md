@@ -43,6 +43,34 @@ The orbit camera implementation in `src/camera.rs` relies on several key concept
     3.  Converting the new `(radius, yaw, pitch)` back into Cartesian coordinates to get the new `eye` position.
     4.  The `pitch` is clamped to prevent the camera from flipping over and to avoid **gimbal lock**, a phenomenon that can cause loss of rotational control.
 
+## The Phong Lighting Model
+
+To give the objects in our scene a more realistic, 3D appearance, we use a lighting model. This project implements the Phong reflection model, a popular technique in computer graphics for calculating the color of a point on a surface. The calculation is done in the `cast_ray` function in `src/main.rs`.
+
+The Phong model simulates how light interacts with a surface by breaking it down into three components:
+
+1.  **Ambient**: Simulates indirect light that fills the scene. This component ensures that objects are never in complete darkness. (Note: This specific implementation omits the ambient component for simplicity).
+2.  **Diffuse**: Simulates the light that hits a surface and scatters equally in all directions. This is what gives objects their base color. The brightness of the diffuse light depends on the angle between the surface normal and the light source.
+3.  **Specular**: Simulates the bright, shiny highlights that appear on smooth surfaces. The intensity of the specular highlight depends on the viewing angle.
+
+### Linear Algebra for Phong Lighting
+
+Implementing the Phong model requires several key vector operations:
+
+*   **Normalization**: To ensure our calculations are based on directions rather than magnitudes, we use normalized (unit) vectors for:
+    *   `light_dir`: The direction from the point on the surface to the light source.
+    *   `view_dir`: The direction from the point on the surface to the camera.
+    *   `normal`: The vector perpendicular to the surface at the point of intersection.
+    *   `reflect_dir`: The direction of the reflected light.
+
+*   **Dot Product**: The dot product is used to determine the intensity of the light components:
+    *   **Diffuse Intensity**: Calculated by the dot product of the `light_dir` and the surface `normal`. The result is clamped to a minimum of 0, as a negative value would mean the light is behind the surface.
+    *   **Specular Intensity**: Calculated by the dot product of the `view_dir` and the `reflect_dir`. A higher dot product means the camera is more aligned with the reflection direction, resulting in a brighter highlight.
+
+*   **Vector Reflection**: To find the direction of the specular highlight, we need to calculate the reflection of the light vector. The `reflect` function calculates this using the formula: `R = L - 2 * N * dot(L, N)`, where `L` is the incident light vector and `N` is the surface normal.
+
+These components are calculated and then combined to produce the final color of the pixel, giving the rendered objects a simple but effective illusion of depth and material.
+
 ## How to run this code
 
 To run this code, you will need to have Rust installed. You can find instructions on how to install Rust [here](https://www.rust-lang.org/tools/install).
@@ -59,8 +87,10 @@ This will compile and run the project. A window should appear with a rendered sp
 
 The project is organized into the following files:
 
--   `src/main.rs`: The main entry point of the program. It initializes `raylib`, creates a window, and contains the main render loop.
+-   `src/main.rs`: The main entry point of the program. It initializes `raylib`, creates a window, and contains the main render loop and lighting calculations.
 -   `src/camera.rs`: Implements the orbit camera, including its orientation and movement logic.
 -   `src/framebuffer.rs`: This file contains the `Framebuffer` struct, which is used to store the rendered image before it is displayed on the screen.
+-   `src/light.rs`: Defines the `Light` struct, representing a light source in the scene.
+-   `src/material.rs`: Defines the `Material` struct, which describes the properties of a surface (diffuse color, specularity).
 -   `src/ray_intersect.rs`: This file defines the `RayIntersect` trait, which is used to check if a ray intersects with an object in the scene.
 -   `src/sphere.rs`: This file contains the `Sphere` struct and its implementation of the `RayIntersect` trait.
