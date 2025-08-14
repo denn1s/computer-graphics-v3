@@ -7,6 +7,7 @@ mod sphere;
 mod camera;
 mod light;
 mod material;
+mod color_ops;
 
 use framebuffer::Framebuffer;
 use ray_intersect::{Intersect, RayIntersect};
@@ -14,6 +15,7 @@ use sphere::Sphere;
 use camera::Camera;
 use light::Light;
 use material::Material;
+use color_ops::ColorOps;
 
 const SHADOW_BIAS: f32 = 1e-4;
 
@@ -74,31 +76,17 @@ pub fn cast_ray(
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0);
-    let diffuse_color = intersect.material.diffuse;
-    let diffuse = Color::new(
-        (diffuse_color.r as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.g as f32 * diffuse_intensity * light_intensity) as u8,
-        (diffuse_color.b as f32 * diffuse_intensity * light_intensity) as u8,
-        255,
-    );
+    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0) * light_intensity;
+    let diffuse = intersect.material.diffuse.mult_f32(diffuse_intensity);
 
-    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular);
-    let specular_color = light.color;
-    let specular = Color::new(
-        (specular_color.r as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.g as f32 * specular_intensity * light_intensity) as u8,
-        (specular_color.b as f32 * specular_intensity * light_intensity) as u8,
-        255,
-    );
+    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light_intensity;
+    let specular = light.color.mult_f32(specular_intensity);
     
     let albedo = intersect.material.albedo;
-    Color::new(
-        (diffuse.r as f32 * albedo[0] + specular.r as f32 * albedo[1]) as u8,
-        (diffuse.g as f32 * albedo[0] + specular.g as f32 * albedo[1]) as u8,
-        (diffuse.b as f32 * albedo[0] + specular.b as f32 * albedo[1]) as u8,
-        255,
-    )
+    let diffuse_component = diffuse.mult_f32(albedo[0]);
+    let specular_component = specular.mult_f32(albedo[1]);
+
+    diffuse_component.tint(specular_component)
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
