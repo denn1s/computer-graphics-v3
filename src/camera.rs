@@ -7,6 +7,7 @@ pub struct Camera {
     pub up: Vector3,      // Up direction (initially world up, gets orthonormalized)
     pub forward: Vector3, // Direction camera is facing (computed from eye->center)
     pub right: Vector3,   // Right direction (perpendicular to forward and up)
+    changed: bool,
 }
 
 impl Camera {
@@ -19,6 +20,7 @@ impl Camera {
             up,
             forward: Vector3::zero(), // Will be computed
             right: Vector3::zero(),   // Will be computed
+            changed: true,
         };
         // Compute the orthonormal basis vectors (forward, right, up)
         camera.update_basis_vectors();
@@ -45,6 +47,7 @@ impl Camera {
         // - forward: direction camera looks
         // - right: rightward direction from camera's perspective  
         // - up: upward direction from camera's perspective
+        self.changed = true;
     }
 
     /// Rotates the camera around the center point (orbital camera movement)
@@ -81,6 +84,18 @@ impl Camera {
         
         // Step 6: Recompute basis vectors for new camera orientation
         self.update_basis_vectors();
+    }
+
+    pub fn zoom(&mut self, amount: f32) {
+        let forward = (self.center - self.eye).normalized();
+        self.eye += forward * amount;
+        self.update_basis_vectors();
+    }
+
+    pub fn is_changed(&mut self) -> bool {
+        let changed = self.changed;
+        self.changed = false;
+        changed
     }
 
     /// Transforms a vector from camera space to world space using basis vectors
