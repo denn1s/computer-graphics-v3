@@ -177,7 +177,7 @@ pub fn cast_ray(
     let specular = light_color_v3 * specular_intensity;
 
     let albedo = intersect.material.albedo;
-    let phong_color = diffuse * albedo[0] + specular * albedo[1];
+    let phong_color = diffuse * albedo[0] + specular * albedo[1] + intersect.material.emissive;
 
     let reflectivity = intersect.material.albedo[2];
     let reflect_color = if reflectivity > 0.0 {
@@ -263,6 +263,7 @@ fn main() {
         0.0,
         Some("assets/ball.png".to_string()),
         Some("assets/ball_normal.png".to_string()),
+        Vector3::zero(),
     );
 
     let bricks = Material::new(
@@ -272,6 +273,7 @@ fn main() {
         0.0,
         Some("assets/bricks.png".to_string()),
         Some("assets/bricks_normal.png".to_string()),
+        Vector3::zero(),
     );
 
     let ivory = Material::new(
@@ -281,6 +283,7 @@ fn main() {
         0.0,
         None,
         None,
+        Vector3::zero(),
     );
 
     let glass = Material::new(
@@ -290,6 +293,17 @@ fn main() {
         1.5,
         None,
         None,
+        Vector3::zero(),
+    );
+
+    let light_material = Material::new(
+        Vector3::new(1.0, 0.7, 0.7),
+        10.0,
+        [1.0, 0.0, 0.0, 0.0],
+        0.0,
+        None,
+        None,
+        Vector3::new(1.0, 1.0, 1.0) * 2.0,
     );
 
     let objects = [
@@ -297,6 +311,7 @@ fn main() {
         Sphere { center: Vector3::new(1.5, 0.0, -1.0), radius: 1.0, material: bricks },
         Sphere { center: Vector3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
         Sphere { center: Vector3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass },
+        Sphere { center: Vector3::new(0.0, 2.0, 0.0), radius: 0.5, material: light_material },
     ];
 
     let mut camera = Camera::new(
