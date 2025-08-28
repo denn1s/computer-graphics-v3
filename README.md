@@ -133,6 +133,53 @@ Our `refract` function automatically handles this. If the calculation for the re
 
 Just like with reflections, we cast a new ray in the refracted direction and recursively call `cast_ray`. The `albedo` property of our `Material` now has a fourth component that controls the transparency of the surface. The final color is a blend of the Phong color, the reflected color, and the refracted color, all weighted by their respective albedo values.
 
+## Texture Mapping
+
+Texture mapping is a technique used to add detail and realism to the surface of a 3D object. Instead of the object having a single, uniform color, we can wrap a 2D image (a texture) around it. This is how we can make a simple sphere look like a planet, a basketball, or any other detailed spherical object.
+
+### Texture Management (`src/textures.rs`)
+
+To handle textures, we have a `TextureManager`. Its job is to load image files from disk and make their pixel data available to the ray tracer.
+
+A key detail in our implementation is that textures are stored in two formats:
+
+1.  **`CpuTexture`**: This version stores the texture's pixel data in a simple `Vec<Vector3>`. The ray tracing algorithm, which runs on the CPU, uses this data to determine the color of a point on an object. Each pixel's color is normalized to a `Vector3` (with components from 0.0 to 1.0) for easy use in lighting calculations.
+2.  **`Texture2D`**: This is `raylib`'s format for a texture that is stored on the GPU. While our ray tracer doesn't use this directly for color calculations, it's kept for potential use in `raylib`'s drawing functions if we wanted to mix rasterization with ray tracing.
+
+The `get_pixel_color` function is the bridge between the texture data and the ray tracer. It takes a texture path and a pair of texture coordinates `(tx, ty)` and returns the color of the pixel at that location.
+
+### UV Calculation for a Sphere (`src/sphere.rs`)
+
+To wrap a 2D image around a 3D sphere, we need a way to map every point on the sphere's surface to a corresponding 2D coordinate on the texture. These 2D coordinates are called **UV coordinates**, where `u` is the horizontal coordinate (like x) and `v` is the vertical coordinate (like y), both typically ranging from 0.0 to 1.0.
+
+This mapping is done in the `get_uv` function inside `src/sphere.rs`. The process is based on spherical coordinates:
+
+1.  **Normalize the Point**: First, we take the 3D intersection point `p` on the sphere's surface and convert it into a normalized vector. We do this by subtracting the sphere's `center` from the point and dividing by the `radius`. This gives us a unit vector pointing from the center to the surface point.
+
+2.  **Calculate `u` (Longitude)**: The `u` coordinate corresponds to the longitude (like on Earth). We can calculate it using the `atan2` function on the `x` and `z` components of our normalized vector. `atan2(x, z)` gives us the angle around the y-axis. We then divide by `2 * PI` to map this angle from `[-PI, PI]` to `[-0.5, 0.5]` and add 0.5 to shift the range to `[0, 1]`.
+
+    ```rust
+    let u = 0.5 + normalized.x.atan2(normalized.z) / (2.0 * PI);
+    ```
+
+3.  **Calculate `v` (Latitude)**: The `v` coordinate corresponds to the latitude. We can get this from the `y` component of our normalized vector. The `asin(y)` function gives us the angle of elevation from the xz-plane. We divide by `PI` to map this angle from `[-PI/2, PI/2]` to `[-0.5, 0.5]` and then subtract it from 0.5 to flip the direction (so 0.0 is at the top and 1.0 is at the bottom) and shift the range to `[0, 1]`.
+
+    ```rust
+    let v = 0.5 - normalized.y.asin() / PI;
+    ```
+
+The result is a pair of `(u, v)` coordinates that uniquely identify a point on the 2D texture for every 3D point on the sphere.
+
+### Applying the Texture (`src/main.rs`)
+
+The final step is to use these UV coordinates in our `cast_ray` function:
+
+1.  When a ray intersects a sphere, the `ray_intersect` method calculates and returns the `(u, v)` coordinates for the intersection point.
+2.  In `cast_ray`, if the intersected object's material has a texture, we use these `u` and `v` coordinates to find the corresponding pixel on the texture.
+3.  We scale the `u` and `v` (which are in the `[0, 1]` range) by the texture's width and height to get the integer pixel coordinates `(tx, ty)`.
+4.  We call `texture_manager.get_pixel_color` with these coordinates to get the color from the texture.
+5.  This color is then used as the `diffuse_color` in the Phong lighting calculation, effectively painting the image onto the sphere's surface.
+
 ## How to run this code
 
 To run this code, you will need to have Rust installed. You can find instructions on how to install Rust [here](https://www.rust-lang.org/tools/install).
