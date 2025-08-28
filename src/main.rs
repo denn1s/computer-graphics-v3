@@ -16,7 +16,6 @@ use light::Light;
 use material::{Material, vector3_to_color};
 
 const ORIGIN_BIAS: f32 = 1e-4;
-const SKYBOX_COLOR: Vector3 = Vector3::new(0.26, 0.55, 0.89);
 
 fn procedural_sky(dir: Vector3) -> Vector3 {
     let d = dir.normalized();
@@ -24,12 +23,11 @@ fn procedural_sky(dir: Vector3) -> Vector3 {
 
     let green = Vector3::new(0.1, 0.6, 0.2); // grass green
     let white = Vector3::new(1.0, 1.0, 1.0); // horizon haze
-    let blue = Vector3::new(0.5, 0.7, 1.0);  // sky blue
-    return white * (1.0 - t) + blue * t;
+    let blue = Vector3::new(0.3, 0.5, 1.0);  // sky blue
 
     if t < 0.54 {
         // Bottom → fade green to white
-        let k = t / 0.54;
+        let k = t / 0.55;
         green * (1.0 - k) + white * k
     } else if t < 0.55 {
         // Around horizon → mostly white
