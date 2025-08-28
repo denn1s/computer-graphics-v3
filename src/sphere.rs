@@ -12,7 +12,7 @@ pub struct Sphere {
 impl Sphere {
     fn get_uv(&self, point: &Vector3) -> (f32, f32) {
         let normalized = (*point - self.center) / self.radius;
-        let u = 0.5 + normalized.z.atan2(normalized.x) / (2.0 * PI);
+        let u = 0.5 + normalized.x.atan2(normalized.z) / (2.0 * PI);
         let v = 0.5 - normalized.y.asin() / PI;
         (u, v)
     }

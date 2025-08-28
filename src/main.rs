@@ -81,7 +81,9 @@ pub fn cast_ray(
     ray_direction: &Vector3,
     objects: &[Sphere],
     light: &Light,
-    texture_manager: &TextureManager,
+    texture_manager: &mut TextureManager,
+    rl: &mut RaylibHandle,
+    thread: &RaylibThread,
     depth: u32,
 ) -> Vector3 {
     if depth > 3 {
@@ -110,13 +112,14 @@ pub fn cast_ray(
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    let diffuse_color = if let Some(texture_id) = intersect.material.texture_id {
-        let width = texture_manager.get_texture(texture_id).unwrap().width() as u32;
-        let height = texture_manager.get_texture(texture_id).unwrap().height() as u32;
+    let diffuse_color = if let Some(texture_path) = &intersect.material.texture_id {
+        let texture = texture_manager.get_texture(rl, thread, texture_path).unwrap();
+        let width = texture.width() as u32;
+        let height = texture.height() as u32;
         let tx = (intersect.u * width as f32) as u32;
         let ty = (intersect.v * height as f32) as u32;
-        let color = texture_manager.get_pixel_color(texture_id, tx, ty);
-        Vector3::new(color.r as f32 / 255.0, color.g as f32 / 255.0, color.b as f32 / 255.0)
+        let color = texture_manager.get_pixel_color(rl, thread, texture_path, tx, ty);
+        color
     } else {
         intersect.material.diffuse
     };
@@ -135,7 +138,7 @@ pub fn cast_ray(
     let reflect_color = if reflectivity > 0.0 {
         let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
         let reflect_origin = offset_origin(&intersect, &reflect_dir);
-        cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
+        cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, rl, thread, depth + 1)
     } else {
         Vector3::zero()
     };
@@ -144,11 +147,11 @@ pub fn cast_ray(
     let refract_color = if transparency > 0.0 {
         if let Some(refract_dir) = refract(ray_direction, &intersect.normal, intersect.material.refractive_index) {
             let refract_origin = offset_origin(&intersect, &refract_dir);
-            cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1)
+            cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, rl, thread, depth + 1)
         } else {
             let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
             let reflect_origin = offset_origin(&intersect, &reflect_dir);
-            cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
+            cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, rl, thread, depth + 1)
         }
     } else {
         Vector3::zero()
@@ -157,7 +160,15 @@ pub fn cast_ray(
     phong_color * (1.0 - reflectivity - transparency) + reflect_color * reflectivity + refract_color * transparency
 }
 
-pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light, texture_manager: &TextureManager) {
+pub fn render(
+    framebuffer: &mut Framebuffer,
+    objects: &[Sphere],
+    camera: &Camera,
+    light: &Light,
+    texture_manager: &mut TextureManager,
+    rl: &mut RaylibHandle,
+    thread: &RaylibThread,
+) {
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let aspect_ratio = width / height;
@@ -176,7 +187,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera
             
             let rotated_direction = camera.basis_change(&ray_direction);
 
-            let pixel_color_v3 = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, 0);
+            let pixel_color_v3 = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, rl, thread, 0);
             let pixel_color = vector3_to_color(pixel_color_v3);
 
             framebuffer.set_current_color(pixel_color);
@@ -195,7 +206,7 @@ fn main() {
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
-    let texture_manager = TextureManager::new(&mut window, &thread);
+    let mut texture_manager = TextureManager::new();
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     let rubber = Material::new(
@@ -203,7 +214,7 @@ fn main() {
         10.0,
         [0.9, 0.1, 0.0, 0.0],
         0.0,
-        Some('+'),
+        Some("assets/ball.png".to_string()),
     );
 
     let ivory = Material::new(
@@ -263,7 +274,7 @@ fn main() {
         }
 
         if camera.is_changed() {
-            render(&mut framebuffer, &objects, &camera, &light, &texture_manager);
+            render(&mut framebuffer, &objects, &camera, &light, &mut texture_manager, &mut window, &thread);
         }
         
         framebuffer.swap_buffers(&mut window, &thread);

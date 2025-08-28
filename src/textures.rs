@@ -2,76 +2,114 @@
 
 use raylib::prelude::*;
 use std::collections::HashMap;
-use std::slice;
+
+struct CpuTexture {
+    width: i32,
+    height: i32,
+    pixels: Vec<Vector3>, // Normalized RGB values
+}
+
+impl CpuTexture {
+    fn from_image(image: &Image) -> Self {
+        // Safe: Raylib handles pixel format internally
+        let colors = image.get_image_data(); // Vec<Color>
+        let pixels = colors
+            .iter()
+            .map(|c| {
+                Vector3::new(
+                    c.r as f32 / 255.0,
+                    c.g as f32 / 255.0,
+                    c.b as f32 / 255.0,
+                )
+            })
+            .collect();
+
+        CpuTexture {
+            width: image.width,
+            height: image.height,
+            pixels,
+        }
+    }
+}
 
 pub struct TextureManager {
-    images: HashMap<char, Image>,       // Store images for pixel access
-    textures: HashMap<char, Texture2D>, // Store GPU textures for rendering
+    cpu_textures: HashMap<String, CpuTexture>,
+    textures: HashMap<String, Texture2D>, // Store GPU textures for rendering
 }
 
 impl TextureManager {
-    pub fn new(rl: &mut RaylibHandle, thread: &RaylibThread) -> Self {
-        let mut images = HashMap::new();
-        let mut textures = HashMap::new();
-
-        // Map characters to texture file paths
-        let texture_files = vec![
-            ('+', "assets/wall4.png"),
-            ('-', "assets/wall2.png"),
-            ('|', "assets/wall1.png"),
-            ('g', "assets/wall5.png"),
-            ('e', "assets/sprite1.png"),
-            ('u', "assets/player.png"),
-            ('#', "assets/wall3.png"), // default/fallback
-        ];
-
-        for (ch, path) in texture_files {
-            let image = Image::load_image(path).expect(&format!("Failed to load image {}", path));
-            let texture = rl.load_texture(thread, path).expect(&format!("Failed to load texture {}", path));
-            images.insert(ch, image);
-            textures.insert(ch, texture);
-        }
-
-        TextureManager { images, textures }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn get_pixel_color(&self, ch: char, tx: u32, ty: u32) -> Color {
-        if let Some(image) = self.images.get(&ch) {
-            let x = tx.min(image.width as u32 - 1) as i32;
-            let y = ty.min(image.height as u32 - 1) as i32;
-            get_pixel_color(image, x, y)
+    fn load_texture_if_needed(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        path: &str,
+    ) {
+        if self.textures.contains_key(path) {
+            return;
+        }
+
+        let image = Image::load_image(path)
+            .unwrap_or_else(|_| panic!("Failed to load image {}", path));
+
+        let texture = rl
+            .load_texture_from_image(thread, &image)
+            .unwrap_or_else(|_| panic!("Failed to load texture {}", path));
+
+        let cpu_texture = CpuTexture::from_image(&image);
+
+        self.cpu_textures.insert(path.to_string(), cpu_texture);
+        self.textures.insert(path.to_string(), texture);
+    }
+
+    pub fn get_pixel_color(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        path: &str,
+        tx: u32,
+        ty: u32,
+    ) -> Vector3 {
+        self.load_texture_if_needed(rl, thread, path);
+
+        if let Some(cpu_texture) = self.cpu_textures.get(path) {
+            let x = tx.min(cpu_texture.width as u32 - 1) as i32;
+            let y = ty.min(cpu_texture.height as u32 - 1) as i32;
+
+            if x < 0 || y < 0 || x >= cpu_texture.width || y >= cpu_texture.height {
+                return Vector3::one(); // default white
+            }
+
+            let index = (y * cpu_texture.width + x) as usize;
+            if index < cpu_texture.pixels.len() {
+                cpu_texture.pixels[index]
+            } else {
+                Vector3::one()
+            }
         } else {
-            Color::WHITE
+            Vector3::one()
         }
     }
 
-    pub fn get_texture(&self, ch: char) -> Option<&Texture2D> {
-        self.textures.get(&ch)
+    pub fn get_texture(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        path: &str,
+    ) -> Option<&Texture2D> {
+        self.load_texture_if_needed(rl, thread, path);
+        self.textures.get(path)
     }
 }
 
-fn get_pixel_color(image: &Image, x: i32, y: i32) -> Color {
-    let width = image.width as usize;
-    let height = image.height as usize;
-
-    if x < 0 || y < 0 || x as usize >= width || y as usize >= height {
-        return Color::WHITE;
-    }
-
-    let x = x as usize;
-    let y = y as usize;
-
-    let data_len = width * height * 4;
-
-    unsafe {
-        let data = slice::from_raw_parts(image.data as *const u8, data_len);
-
-        let idx = (y * width + x) * 4;
-
-        if idx + 3 >= data_len {
-            return Color::WHITE;
+impl Default for TextureManager {
+    fn default() -> Self {
+        TextureManager {
+            cpu_textures: HashMap::new(),
+            textures: HashMap::new(),
         }
-
-        Color::new(data[idx], data[idx + 1], data[idx + 2], data[idx + 3])
     }
 }
