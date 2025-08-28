@@ -18,6 +18,32 @@ use material::{Material, vector3_to_color};
 const ORIGIN_BIAS: f32 = 1e-4;
 const SKYBOX_COLOR: Vector3 = Vector3::new(0.26, 0.55, 0.89);
 
+fn procedural_sky(dir: Vector3) -> Vector3 {
+    let d = dir.normalized();
+    let t = (d.y + 1.0) * 0.5; // map y [-1,1] → [0,1]
+
+    let green = Vector3::new(0.1, 0.6, 0.2); // grass green
+    let white = Vector3::new(1.0, 1.0, 1.0); // horizon haze
+    let blue = Vector3::new(0.5, 0.7, 1.0);  // sky blue
+    return white * (1.0 - t) + blue * t;
+
+    if t < 0.54 {
+        // Bottom → fade green to white
+        let k = t / 0.54;
+        green * (1.0 - k) + white * k
+    } else if t < 0.55 {
+        // Around horizon → mostly white
+        white
+    } else if t < 0.8 {
+        // Fade white to blue
+        let k = (t - 0.55) / (0.25);
+        white * (1.0 - k) + blue * k
+    } else {
+        // Upper sky → solid blue
+        blue
+    }
+}
+
 fn offset_origin(intersect: &Intersect, direction: &Vector3) -> Vector3 {
     let offset = intersect.normal * ORIGIN_BIAS;
     if direction.dot(intersect.normal) < 0.0 {
@@ -59,7 +85,8 @@ pub fn cast_ray(
     depth: u32,
 ) -> Vector3 {
     if depth > 3 {
-        return SKYBOX_COLOR;
+        return procedural_sky(*ray_direction);
+        // return SKYBOX_COLOR;
     }
 
     let mut intersect = Intersect::empty();
@@ -74,7 +101,8 @@ pub fn cast_ray(
     }
 
     if !intersect.is_intersecting {
-        return SKYBOX_COLOR;
+        return procedural_sky(*ray_direction);
+        // return SKYBOX_COLOR;
     }
 
     let light_dir = (light.position - intersect.point).normalized();
