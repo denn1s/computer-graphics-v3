@@ -96,6 +96,37 @@ impl TextureManager {
     ) -> Option<&Texture2D> {
         self.textures.get(path)
     }
+
+    pub fn get_normal_from_map(
+        &self,
+        path: &str,
+        tx: u32,
+        ty: u32,
+    ) -> Option<Vector3> {
+        if let Some(cpu_texture) = self.cpu_textures.get(path) {
+            let x = tx.min(cpu_texture.width as u32 - 1) as i32;
+            let y = ty.min(cpu_texture.height as u32 - 1) as i32;
+
+            if x < 0 || y < 0 || x >= cpu_texture.width || y >= cpu_texture.height {
+                return None;
+            }
+
+            let index = (y * cpu_texture.width + x) as usize;
+            if index < cpu_texture.pixels.len() {
+                let color = cpu_texture.pixels[index];
+                let normal = Vector3::new(
+                    color.x * 2.0 - 1.0,
+                    color.y * 2.0 - 1.0,
+                    color.z,
+                );
+                Some(normal.normalized())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 impl Default for TextureManager {

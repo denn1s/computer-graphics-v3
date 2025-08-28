@@ -7,6 +7,7 @@ pub struct Material {
     pub specular: f32,
     pub refractive_index: f32,
     pub texture_id: Option<String>,
+    pub normal_map_id: Option<String>,
 }
 
 impl Material {
@@ -16,6 +17,7 @@ impl Material {
         albedo: [f32; 4],
         refractive_index: f32,
         texture_id: Option<String>,
+        normal_map_id: Option<String>,
     ) -> Self {
         Material {
             diffuse,
@@ -23,6 +25,7 @@ impl Material {
             specular,
             refractive_index,
             texture_id,
+            normal_map_id,
         }
     }
 
@@ -33,6 +36,7 @@ impl Material {
             specular: 0.0,
             refractive_index: 0.0,
             texture_id: None,
+            normal_map_id: None,
         }
     }
 }

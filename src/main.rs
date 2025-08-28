@@ -105,7 +105,28 @@ pub fn cast_ray(
 
     let light_dir = (light.position - intersect.point).normalized();
     let view_dir = (*ray_origin - intersect.point).normalized();
-    let reflect_dir = reflect(&-light_dir, &intersect.normal).normalized();
+
+    let mut normal = intersect.normal;
+    if let Some(normal_map_path) = &intersect.material.normal_map_id {
+        let texture = texture_manager.get_texture(normal_map_path).unwrap();
+        let width = texture.width() as u32;
+        let height = texture.height() as u32;
+        let tx = (intersect.u * width as f32) as u32;
+        let ty = (intersect.v * height as f32) as u32;
+
+        if let Some(tex_normal) = texture_manager.get_normal_from_map(normal_map_path, tx, ty) {
+            let tangent = Vector3::new(normal.y, -normal.x, 0.0).normalized();
+            let bitangent = normal.cross(tangent);
+            
+            let transformed_normal_x = tex_normal.x * tangent.x + tex_normal.y * bitangent.x + tex_normal.z * normal.x;
+            let transformed_normal_y = tex_normal.x * tangent.y + tex_normal.y * bitangent.y + tex_normal.z * normal.y;
+            let transformed_normal_z = tex_normal.x * tangent.z + tex_normal.y * bitangent.z + tex_normal.z * normal.z;
+
+            normal = Vector3::new(transformed_normal_x, transformed_normal_y, transformed_normal_z).normalized();
+        }
+    }
+
+    let reflect_dir = reflect(&-light_dir, &normal).normalized();
 
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
@@ -122,7 +143,7 @@ pub fn cast_ray(
         intersect.material.diffuse
     };
 
-    let diffuse_intensity = intersect.normal.dot(light_dir).max(0.0) * light_intensity;
+    let diffuse_intensity = normal.dot(light_dir).max(0.0) * light_intensity;
     let diffuse = diffuse_color * diffuse_intensity;
 
     let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light_intensity;
@@ -134,7 +155,7 @@ pub fn cast_ray(
 
     let reflectivity = intersect.material.albedo[2];
     let reflect_color = if reflectivity > 0.0 {
-        let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+        let reflect_dir = reflect(ray_direction, &normal).normalized();
         let reflect_origin = offset_origin(&intersect, &reflect_dir);
         cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
     } else {
@@ -143,11 +164,11 @@ pub fn cast_ray(
 
     let transparency = intersect.material.albedo[3];
     let refract_color = if transparency > 0.0 {
-        if let Some(refract_dir) = refract(ray_direction, &intersect.normal, intersect.material.refractive_index) {
+        if let Some(refract_dir) = refract(ray_direction, &normal, intersect.material.refractive_index) {
             let refract_origin = offset_origin(&intersect, &refract_dir);
             cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1)
         } else {
-            let reflect_dir = reflect(ray_direction, &intersect.normal).normalized();
+            let reflect_dir = reflect(ray_direction, &normal).normalized();
             let reflect_origin = offset_origin(&intersect, &reflect_dir);
             cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
         }
@@ -204,6 +225,9 @@ fn main() {
 
     let mut texture_manager = TextureManager::new();
     texture_manager.load_texture(&mut window, &thread, "assets/ball.png");
+    texture_manager.load_texture(&mut window, &thread, "assets/ball_normal.png");
+    texture_manager.load_texture(&mut window, &thread, "assets/bricks.png");
+    texture_manager.load_texture(&mut window, &thread, "assets/bricks_normal.png");
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
     let rubber = Material::new(
@@ -212,6 +236,16 @@ fn main() {
         [0.9, 0.1, 0.0, 0.0],
         0.0,
         Some("assets/ball.png".to_string()),
+        Some("assets/ball_normal.png".to_string()),
+    );
+
+    let bricks = Material::new(
+        Vector3::new(0.8, 0.2, 0.1),
+        20.0,
+        [0.8, 0.2, 0.0, 0.0],
+        0.0,
+        Some("assets/bricks.png".to_string()),
+        Some("assets/bricks_normal.png".to_string()),
     );
 
     let ivory = Material::new(
@@ -219,6 +253,7 @@ fn main() {
         50.0,
         [0.6, 0.3, 0.1, 0.0],
         0.0,
+        None,
         None,
     );
 
@@ -228,10 +263,12 @@ fn main() {
         [0.0, 0.5, 0.1, 0.8],
         1.5,
         None,
+        None,
     );
 
     let objects = [
         Sphere { center: Vector3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
+        Sphere { center: Vector3::new(1.5, 0.0, -1.0), radius: 1.0, material: bricks },
         Sphere { center: Vector3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
         Sphere { center: Vector3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass },
     ];
