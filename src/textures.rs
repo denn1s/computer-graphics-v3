@@ -42,7 +42,7 @@ impl TextureManager {
         Self::default()
     }
 
-    fn load_texture_if_needed(
+    pub fn load_texture(
         &mut self,
         rl: &mut RaylibHandle,
         thread: &RaylibThread,
@@ -66,15 +66,11 @@ impl TextureManager {
     }
 
     pub fn get_pixel_color(
-        &mut self,
-        rl: &mut RaylibHandle,
-        thread: &RaylibThread,
+        &self,
         path: &str,
         tx: u32,
         ty: u32,
     ) -> Vector3 {
-        self.load_texture_if_needed(rl, thread, path);
-
         if let Some(cpu_texture) = self.cpu_textures.get(path) {
             let x = tx.min(cpu_texture.width as u32 - 1) as i32;
             let y = ty.min(cpu_texture.height as u32 - 1) as i32;
@@ -95,12 +91,9 @@ impl TextureManager {
     }
 
     pub fn get_texture(
-        &mut self,
-        rl: &mut RaylibHandle,
-        thread: &RaylibThread,
+        &self,
         path: &str,
     ) -> Option<&Texture2D> {
-        self.load_texture_if_needed(rl, thread, path);
         self.textures.get(path)
     }
 }
