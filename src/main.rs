@@ -8,6 +8,7 @@ mod camera;
 mod light;
 mod material;
 mod textures;
+mod procedural;
 
 use framebuffer::Framebuffer;
 use ray_intersect::{Intersect, RayIntersect};
@@ -297,7 +298,7 @@ fn main() {
     );
 
     let light_material = Material::new(
-        Vector3::new(1.0, 0.7, 0.7),
+        Vector3::new(1.0, 1.0, 1.0),
         10.0,
         [1.0, 0.0, 0.0, 0.0],
         0.0,
@@ -306,13 +307,17 @@ fn main() {
         Vector3::new(1.0, 1.0, 1.0) * 2.0,
     );
 
-    let objects = [
-        Sphere { center: Vector3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber },
-        Sphere { center: Vector3::new(1.5, 0.0, -1.0), radius: 1.0, material: bricks },
-        Sphere { center: Vector3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory },
-        Sphere { center: Vector3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass },
-        Sphere { center: Vector3::new(0.0, 2.0, 0.0), radius: 0.5, material: light_material },
+    let mut objects = vec![
+        Sphere { center: Vector3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber.clone() },
+        Sphere { center: Vector3::new(1.5, 0.0, -1.0), radius: 1.0, material: bricks.clone() },
+        Sphere { center: Vector3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory.clone() },
+        Sphere { center: Vector3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass.clone() },
+        Sphere { center: Vector3::new(0.0, 2.0, 0.0), radius: 0.5, material: light_material.clone() },
     ];
+
+    let materials = [bricks, rubber, ivory];
+    let terrain = procedural::generate_terrain(10, 10, &materials);
+    objects.extend(terrain);
 
     let mut camera = Camera::new(
         Vector3::new(0.0, 0.0, 5.0),
