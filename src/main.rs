@@ -80,7 +80,7 @@ fn main() {
     let window_width = 800;
     let window_height = 600;
 
-    let (mut rl, thread) = raylib::init()
+    let (mut window, thread) = raylib::init()
         .size(window_width, window_height)
         .title("Rust Graphics - Renderer Example")
         .log_level(TraceLogLevel::LOG_WARNING) // Suppress INFO messages
@@ -90,7 +90,7 @@ fn main() {
     framebuffer.set_background_color(Vector3::new(0.2, 0.2, 0.4)); // Dark blue-ish
 
     // Initialize the texture inside the framebuffer
-    framebuffer.init_texture(&mut rl, &thread);
+    framebuffer.init_texture(&mut window, &thread);
 
     let mut translation = Vector3::new(400.0, 300.0, 0.0);
     let mut rotation = Vector3::new(0.0, 0.0, 0.0);
@@ -99,8 +99,8 @@ fn main() {
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
-    while !rl.window_should_close() {
-        handle_input(&mut rl, &mut translation, &mut rotation, &mut scale);
+    while !window.window_should_close() {
+        handle_input(&mut window, &mut translation, &mut rotation, &mut scale);
 
         framebuffer.clear();
 
@@ -110,47 +110,47 @@ fn main() {
         render(&mut framebuffer, &uniforms, &vertex_array);
 
         // Call the encapsulated swap_buffers function
-        framebuffer.swap_buffers(&mut rl, &thread);
+        framebuffer.swap_buffers(&mut window, &thread);
 
         thread::sleep(Duration::from_millis(16));
     }
 }
 
-fn handle_input(rl: &mut RaylibHandle, translation: &mut Vector3, rotation: &mut Vector3, scale: &mut f32) {
-    if rl.is_key_down(KeyboardKey::KEY_RIGHT) {
+fn handle_input(window: &mut RaylibHandle, translation: &mut Vector3, rotation: &mut Vector3, scale: &mut f32) {
+    if window.is_key_down(KeyboardKey::KEY_RIGHT) {
         translation.x += 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_LEFT) {
+    if window.is_key_down(KeyboardKey::KEY_LEFT) {
         translation.x -= 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_UP) {
+    if window.is_key_down(KeyboardKey::KEY_UP) {
         translation.y -= 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_DOWN) {
+    if window.is_key_down(KeyboardKey::KEY_DOWN) {
         translation.y += 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_S) {
+    if window.is_key_down(KeyboardKey::KEY_S) {
         *scale += 0.1;
     }
-    if rl.is_key_down(KeyboardKey::KEY_A) {
+    if window.is_key_down(KeyboardKey::KEY_A) {
         *scale -= 0.1;
     }
-    if rl.is_key_down(KeyboardKey::KEY_Q) {
+    if window.is_key_down(KeyboardKey::KEY_Q) {
         rotation.x -= PI / 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_W) {
+    if window.is_key_down(KeyboardKey::KEY_W) {
         rotation.x += PI / 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_E) {
+    if window.is_key_down(KeyboardKey::KEY_E) {
         rotation.y -= PI / 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_R) {
+    if window.is_key_down(KeyboardKey::KEY_R) {
         rotation.y += PI / 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_T) {
+    if window.is_key_down(KeyboardKey::KEY_T) {
         rotation.z -= PI / 10.0;
     }
-    if rl.is_key_down(KeyboardKey::KEY_Y) {
+    if window.is_key_down(KeyboardKey::KEY_Y) {
         rotation.z += PI / 10.0;
     }
 }
