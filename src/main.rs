@@ -1,64 +1,37 @@
-use nalgebra_glm::{Vec3, Mat4};
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
-use std::f32::consts::PI;
+// main.rs
 
 mod framebuffer;
 mod triangle;
 mod line;
 mod vertex;
-mod obj;
-mod color;
 mod fragment;
 mod shaders;
+mod obj;
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
-use obj::Obj;
 use triangle::triangle;
 use shaders::vertex_shader;
-
+use obj::Obj;
+use raylib::prelude::*;
+use std::thread;
+use std::time::Duration;
+use std::f32::consts::PI;
 
 pub struct Uniforms {
-    model_matrix: Mat4,
+    pub model_matrix: Matrix,
 }
 
-fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
-    let (sin_x, cos_x) = rotation.x.sin_cos();
-    let (sin_y, cos_y) = rotation.y.sin_cos();
-    let (sin_z, cos_z) = rotation.z.sin_cos();
-
-    let rotation_matrix_x = Mat4::new(
-        1.0,  0.0,    0.0,   0.0,
-        0.0,  cos_x, -sin_x, 0.0,
-        0.0,  sin_x,  cos_x, 0.0,
-        0.0,  0.0,    0.0,   1.0,
-    );
-
-    let rotation_matrix_y = Mat4::new(
-        cos_y,  0.0,  sin_y, 0.0,
-        0.0,    1.0,  0.0,   0.0,
-        -sin_y, 0.0,  cos_y, 0.0,
-        0.0,    0.0,  0.0,   1.0,
-    );
-
-    let rotation_matrix_z = Mat4::new(
-        cos_z, -sin_z, 0.0, 0.0,
-        sin_z,  cos_z, 0.0, 0.0,
-        0.0,    0.0,  1.0, 0.0,
-        0.0,    0.0,  0.0, 1.0,
-    );
-
+fn create_model_matrix(translation: Vector3, scale: f32, rotation: Vector3) -> Matrix {
+    let rotation_matrix_x = Matrix::rotate_x(rotation.x);
+    let rotation_matrix_y = Matrix::rotate_y(rotation.y);
+    let rotation_matrix_z = Matrix::rotate_z(rotation.z);
     let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
 
-    let transform_matrix = Mat4::new(
-        scale, 0.0,   0.0,   translation.x,
-        0.0,   scale, 0.0,   translation.y,
-        0.0,   0.0,   scale, translation.z,
-        0.0,   0.0,   0.0,   1.0,
-    );
+    let scale_matrix = Matrix::scale(scale, scale, scale);
+    let translation_matrix = Matrix::translate(translation.x, translation.y, translation.z);
 
-    transform_matrix * rotation_matrix
+    translation_matrix * rotation_matrix * scale_matrix
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -67,6 +40,12 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     for vertex in vertex_array {
         let transformed = vertex_shader(vertex, uniforms);
         transformed_vertices.push(transformed);
+    }
+
+    // Log the first 3 transformed vertices for debugging
+    println!("--- Transformed Vertices (first 3) ---");
+    for i in 0..3.min(transformed_vertices.len()) {
+        println!("Vertex {}: {:?}", i, transformed_vertices[i].transformed_position);
     }
 
     // Primitive Assembly Stage
@@ -89,102 +68,89 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
     // Fragment Processing Stage
     for fragment in fragments {
-        let x = fragment.position.x as usize;
-        let y = fragment.position.y as usize;
-        if x < framebuffer.width && y < framebuffer.height {
-            let color = fragment.color.to_hex();
-            framebuffer.set_current_color(color);
-            framebuffer.point(x, y);
-        }
+        framebuffer.point(
+            fragment.position.x as i32,
+            fragment.position.y as i32,
+            fragment.color
+        );
     }
 }
 
 fn main() {
     let window_width = 800;
     let window_height = 600;
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
-    let frame_delay = Duration::from_millis(16);
 
-    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
-    let mut window = Window::new(
-        "Rust Graphics - Renderer Example",
-        window_width,
-        window_height,
-        WindowOptions::default(),
-    )
-    .unwrap();
+    let (mut rl, thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Rust Graphics - Renderer Example")
+        .log_level(TraceLogLevel::LOG_WARNING) // Suppress INFO messages
+        .build();
 
-    window.set_position(500, 500);
-    window.update();
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
+    framebuffer.set_background_color(Vector3::new(0.2, 0.2, 0.4)); // Dark blue-ish
 
-    framebuffer.set_background_color(0x333355);
+    // Initialize the texture inside the framebuffer
+    framebuffer.init_texture(&mut rl, &thread);
 
-    let mut translation = Vec3::new(300.0, 200.0, 0.0);
-    let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 100.0f32;
+    let mut translation = Vector3::new(400.0, 300.0, 0.0);
+    let mut rotation = Vector3::new(0.0, 0.0, 0.0);
+    let mut scale = 1.2f32; // Set scale to 1.2
 
-    let obj = Obj::load("assets/models/model.obj").expect("Failed to load obj");
-    let vertex_arrays = obj.get_vertex_array(); 
+    let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
+    let vertex_array = obj.get_vertex_array();
 
-    while window.is_open() {
-        if window.is_key_down(Key::Escape) {
-            break;
-        }
-
-        handle_input(&window, &mut translation, &mut rotation, &mut scale);
+    while !rl.window_should_close() {
+        handle_input(&mut rl, &mut translation, &mut rotation, &mut scale);
 
         framebuffer.clear();
 
         let model_matrix = create_model_matrix(translation, scale, rotation);
         let uniforms = Uniforms { model_matrix };
 
-        framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_arrays);
+        render(&mut framebuffer, &uniforms, &vertex_array);
 
-        window
-            .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-            .unwrap();
+        // Call the encapsulated swap_buffers function
+        framebuffer.swap_buffers(&mut rl, &thread);
 
-        std::thread::sleep(frame_delay);
+        thread::sleep(Duration::from_millis(16));
     }
 }
 
-fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
-    if window.is_key_down(Key::Right) {
+fn handle_input(rl: &mut RaylibHandle, translation: &mut Vector3, rotation: &mut Vector3, scale: &mut f32) {
+    if rl.is_key_down(KeyboardKey::KEY_RIGHT) {
         translation.x += 10.0;
     }
-    if window.is_key_down(Key::Left) {
+    if rl.is_key_down(KeyboardKey::KEY_LEFT) {
         translation.x -= 10.0;
     }
-    if window.is_key_down(Key::Up) {
+    if rl.is_key_down(KeyboardKey::KEY_UP) {
         translation.y -= 10.0;
     }
-    if window.is_key_down(Key::Down) {
+    if rl.is_key_down(KeyboardKey::KEY_DOWN) {
         translation.y += 10.0;
     }
-    if window.is_key_down(Key::S) {
-        *scale += 2.0;
+    if rl.is_key_down(KeyboardKey::KEY_S) {
+        *scale += 0.1;
     }
-    if window.is_key_down(Key::A) {
-        *scale -= 2.0;
+    if rl.is_key_down(KeyboardKey::KEY_A) {
+        *scale -= 0.1;
     }
-    if window.is_key_down(Key::Q) {
+    if rl.is_key_down(KeyboardKey::KEY_Q) {
         rotation.x -= PI / 10.0;
     }
-    if window.is_key_down(Key::W) {
+    if rl.is_key_down(KeyboardKey::KEY_W) {
         rotation.x += PI / 10.0;
     }
-    if window.is_key_down(Key::E) {
+    if rl.is_key_down(KeyboardKey::KEY_E) {
         rotation.y -= PI / 10.0;
     }
-    if window.is_key_down(Key::R) {
+    if rl.is_key_down(KeyboardKey::KEY_R) {
         rotation.y += PI / 10.0;
     }
-    if window.is_key_down(Key::T) {
+    if rl.is_key_down(KeyboardKey::KEY_T) {
         rotation.z -= PI / 10.0;
     }
-    if window.is_key_down(Key::Y) {
+    if rl.is_key_down(KeyboardKey::KEY_Y) {
         rotation.z += PI / 10.0;
     }
 }
