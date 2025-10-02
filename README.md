@@ -72,3 +72,27 @@ Direct Impacts:
 7. Window Management Integration: The changes allow for better integration with window management systems through Raylib.
 
 8. Continuous Rendering: The main loop now continuously updates the framebuffer and renders it to the window, enabling smoother animations and interactions.
+
+### Core Changes
+
+1. **New Framebuffer Class**: A new `Framebuffer` class was introduced, replacing the previous implementation.
+
+2. **Dependency Addition**: The `raylib` library was added as a dependency.
+
+3. **Structural Changes**: The `Framebuffer` now uses `raylib::Image` instead of a raw buffer array.
+
+4. **Method Renamings**: Several methods were renamed for clarity and consistency.
+
+5. **Color Representation**: Colors are now represented using `raylib::Color` instead of `u32`.
+
+### Direct Impact
+
+1. **Simplified API**: The new `Framebuffer` class provides a more intuitive and easier-to-use interface.
+
+2. **Improved Performance**: Using `raylib::Image` likely improves performance compared to manual buffer management.
+
+3. **Enhanced Features**: The addition of `raylib` brings additional functionality and better graphics capabilities.
+
+4. **Compatibility Issues**: Code using the old `Framebuffer` might need updates to work with the new implementation.
+
+5. **Learning Curve**: Developers familiar with the old implementation may need time to adapt to the new `raylib`-based approach.
