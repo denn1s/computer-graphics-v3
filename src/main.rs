@@ -1,161 +1,116 @@
-use nalgebra_glm::{Vec3, Mat3};
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
-use std::f32::consts::PI;
+// main.rs
 
 mod framebuffer;
 mod triangle;
 mod line;
 
 use framebuffer::Framebuffer;
-use triangle::Triangle;
+use triangle::triangle;
+use raylib::prelude::*;
+use std::thread;
+use std::time::Duration;
+use std::f32::consts::PI;
 
-fn render_square(
+fn transform(vertex: Vector3, translation: Vector3, scale: f32, rotation: f32, center: Vector3) -> Vector3 {
+    let mut new_vertex = vertex;
+
+    // Translate to origin
+    new_vertex.x -= center.x;
+    new_vertex.y -= center.y;
+
+    // Rotate
+    let cos_theta = (rotation * PI / 180.0).cos();
+    let sin_theta = (rotation * PI / 180.0).sin();
+    let rotated_x = new_vertex.x * cos_theta - new_vertex.y * sin_theta;
+    let rotated_y = new_vertex.x * sin_theta + new_vertex.y * cos_theta;
+    new_vertex.x = rotated_x;
+    new_vertex.y = rotated_y;
+
+    // Scale
+    new_vertex.x *= scale;
+    new_vertex.y *= scale;
+
+    // Translate back
+    new_vertex.x += center.x;
+    new_vertex.y += center.y;
+
+    // Translate
+    new_vertex.x += translation.x;
+    new_vertex.y += translation.y;
+
+    new_vertex
+}
+
+fn render(
     framebuffer: &mut Framebuffer,
-    start: Vec3,
-    size: f32,
-    translation: Vec3,
+    translation: Vector3,
     scale: f32,
     rotation: f32,
 ) {
-    let v1 = start;
-    let v2 = Vec3::new(start.x + size, start.y, start.z);
-    let v3 = Vec3::new(start.x + size, start.y + size, start.z);
-    let v4 = Vec3::new(start.x, start.y + size, start.z);
-    let center = Vec3::new(start.x + size / 2.0, start.y + size / 2.0, start.z);
+    framebuffer.clear();
+    framebuffer.set_current_color(Color::GREEN);
 
-    let t1 = transform_using_matrix2(v1, translation, scale, rotation, center);
-    let t2 = transform_using_matrix2(v2, translation, scale, rotation, center);
-    let t3 = transform_using_matrix2(v3, translation, scale, rotation, center);
-    let t4 = transform_using_matrix2(v4, translation, scale, rotation, center);
+    let v1 = Vector3::new(100.0, 100.0, 0.0);
+    let v2 = Vector3::new(200.0, 100.0, 0.0);
+    let v3 = Vector3::new(150.0, 200.0, 0.0);
 
-    framebuffer.triangle(t1, t2, t4);
-    framebuffer.triangle(t2, t3, t4);
-}
+    let center = Vector3::new((v1.x + v2.x + v3.x) / 3.0, (v1.y + v2.y + v3.y) / 3.0, 0.0);
 
-fn transform(vertex: Vec3, translation: Vec3, scale: f32) -> Vec3 {
-    Vec3::new(
-        (vertex.x + translation.x) * scale,
-        (vertex.y + translation.y) * scale,
-        (vertex.z + translation.z) * scale,
-    )
-}
+    let t1 = transform(v1, translation, scale, rotation, center);
+    let t2 = transform(v2, translation, scale, rotation, center);
+    let t3 = transform(v3, translation, scale, rotation, center);
 
-fn transform_using_matrix(vertex: Vec3, translation: Vec3, scale: f32) -> Vec3 {
-    let transform_matrix = Mat3::new(
-        scale, 0.0,   translation.x,
-        0.0,   scale, translation.y,
-        0.0,   0.0,   1.0,
-    );
-
-    transform_matrix * vertex
-}
-
-fn transform_using_matrix2(vertex: Vec3, translation: Vec3, scale: f32, rotation: f32, center: Vec3) -> Vec3 {
-    let move_to_center = Mat3::new(
-        1.0,  0.0, -center.x,
-        0.0,  1.0, -center.y,
-        0.0,  0.0, 1.0
-    );
-    let transform_matrix = Mat3::new(
-        scale, 0.0,   translation.x,
-        0.0,   scale, translation.y,
-        0.0,   0.0,   1.0,
-    );
-    let cos_theta = (rotation * PI / 180.0).cos();
-    let sin_theta = (rotation * PI / 180.0).sin();
-    let rotation_matrix = Mat3::new(
-        cos_theta,  -sin_theta, 0.0,
-        sin_theta,  cos_theta,  0.0,
-        0.0,        0.0,        1.0,
-    );
-    let move_to_back = Mat3::new(
-        1.0,  0.0, center.x,
-        0.0,  1.0, center.y,
-        0.0,  0.0, 1.0
-    );
-
-    // transform_matrix * vertex
-
-    let homogeneous_vertex = Vec3::new(vertex.x, vertex.y, 1.0);
-    let homogeneous_vertex_transformed = move_to_back * transform_matrix * rotation_matrix * move_to_center * homogeneous_vertex;
-    
-    Vec3::new(
-        homogeneous_vertex_transformed.x / homogeneous_vertex_transformed.z,
-        homogeneous_vertex_transformed.y / homogeneous_vertex_transformed.z,
-        vertex.z,
-    )
+    triangle(framebuffer, t1, t2, t3);
 }
 
 fn main() {
     let window_width = 800;
     let window_height = 600;
-    let framebuffer_width = 80;
-    let framebuffer_height = 60;
-    let frame_delay = Duration::from_millis(16);
 
-    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
-    let mut window = Window::new(
-        "Rust Graphics - Framebuffer Example",
-        window_width,
-        window_height,
-        WindowOptions::default(),
-    )
-        .unwrap();
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Window Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
+        .build();
 
-    // move the window around
-    window.set_position(500, 500);
-    window.update();
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
-    framebuffer.set_background_color(0x333355);
+    framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-    let mut translation = Vec3::new(0.0, 0.0, 0.0);
+    let mut translation = Vector3::new(0.0, 0.0, 0.0);
     let mut rotation = 0.0;
     let mut scale = 1.0f32;
 
-    while window.is_open() {
-        // listen to inputs
-        if window.is_key_down(Key::Escape) {
-            break;
-        }
-        if window.is_key_down(Key::Right) {
+    while !window.window_should_close() {
+        if window.is_key_down(KeyboardKey::KEY_RIGHT) {
             translation.x += 1.0;
         }
-        if window.is_key_down(Key::Left) {
+        if window.is_key_down(KeyboardKey::KEY_LEFT) {
             translation.x -= 1.0;
         }
-        if window.is_key_down(Key::Up) {
+        if window.is_key_down(KeyboardKey::KEY_UP) {
             translation.y -= 1.0;
         }
-        if window.is_key_down(Key::Down) {
+        if window.is_key_down(KeyboardKey::KEY_DOWN) {
             translation.y += 1.0;
         }
-        if window.is_key_down(Key::S) {
+        if window.is_key_down(KeyboardKey::KEY_S) {
             scale += 0.1;
         }
-        if window.is_key_down(Key::A) {
+        if window.is_key_down(KeyboardKey::KEY_A) {
             scale -= 0.1;
         }
-        if window.is_key_down(Key::E) {
+        if window.is_key_down(KeyboardKey::KEY_E) {
             rotation -= 5.0;
         }
-        if window.is_key_down(Key::R) {
+        if window.is_key_down(KeyboardKey::KEY_R) {
             rotation += 5.0;
         }
 
-        // Clear the framebuffer
-        framebuffer.clear();
+        render(&mut framebuffer, translation, scale, rotation);
 
-        // Draw some points
-        framebuffer.set_current_color(0xFFDDDD);
-        let vertex = Vec3::new(30.0, 20.0, 1.0);
-        render_square(&mut framebuffer, vertex, 10.0, translation, scale, rotation);
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
 
-        // Update the window with the framebuffer contents
-        window
-            .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-            .unwrap();
-
-        std::thread::sleep(frame_delay);
+        thread::sleep(Duration::from_millis(16));
     }
 }
