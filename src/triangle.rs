@@ -1,16 +1,20 @@
 // triangle.rs
+
 use crate::framebuffer::Framebuffer;
-use crate::line::Line;
-use nalgebra_glm::Vec3;
+use crate::line::line;
+use raylib::prelude::*;
 
-pub trait Triangle {
-    fn triangle(&mut self, v1: Vec3, v2: Vec3, v3: Vec3);
-}
+pub fn triangle(
+    framebuffer: &mut Framebuffer,
+    v1: Vector3,
+    v2: Vector3,
+    v3: Vector3,
+) {
+    let a = Vector2::new(v1.x, v1.y);
+    let b = Vector2::new(v2.x, v2.y);
+    let c = Vector2::new(v3.x, v3.y);
 
-impl Triangle for Framebuffer {
-    fn triangle(&mut self, v1: Vec3, v2: Vec3, v3: Vec3) {
-        self.line(v1, v2);
-        self.line(v2, v3);
-        self.line(v3, v1);
-    }
+    line(framebuffer, a, b);
+    line(framebuffer, b, c);
+    line(framebuffer, c, a);
 }

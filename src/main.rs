@@ -1,81 +1,69 @@
-use nalgebra_glm::{Vec3, Vec4, Mat4};
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
-use std::f32::consts::PI;
+// main.rs
 
 mod framebuffer;
 mod triangle;
 mod line;
 
 use framebuffer::Framebuffer;
-use triangle::Triangle;
+use triangle::triangle;
+use raylib::prelude::*;
+use std::thread;
+use std::time::Duration;
+use std::f32::consts::PI;
 
-fn transform(vertex: Vec3, translation: Vec3, scale: f32, rotation: Vec3) -> Vec3 {
-    let (sin_x, cos_x) = rotation.x.to_radians().sin_cos();
-    let (sin_y, cos_y) = rotation.y.to_radians().sin_cos();
-    let (sin_z, cos_z) = rotation.z.to_radians().sin_cos();
+fn transform(vertex: Vector3, translation: Vector3, scale: f32, rotation: Vector3) -> Vector3 {
+    let (sin_x, cos_x) = (rotation.x * PI / 180.0).sin_cos();
+    let (sin_y, cos_y) = (rotation.y * PI / 180.0).sin_cos();
+    let (sin_z, cos_z) = (rotation.z * PI / 180.0).sin_cos();
 
-    // Rotation matrix around the X axis
-    let rotation_matrix_x = Mat4::new(
-        1.0,  0.0,    0.0,   0.0,
-        0.0,  cos_x, -sin_x, 0.0,
-        0.0,  sin_x,  cos_x, 0.0,
-        0.0,  0.0,    0.0,   1.0,
-    );
+    let mut new_vertex = vertex;
 
-    // Rotation matrix around the Y axis
-    let rotation_matrix_y = Mat4::new(
-        cos_y,  0.0,  sin_y, 0.0,
-        0.0,    1.0,  0.0,   0.0,
-        -sin_y, 0.0,  cos_y, 0.0,
-        0.0,    0.0,  0.0,   1.0,
-    );
+    // Rotate X
+    let rotated_y = new_vertex.y * cos_x - new_vertex.z * sin_x;
+    let rotated_z = new_vertex.y * sin_x + new_vertex.z * cos_x;
+    new_vertex.y = rotated_y;
+    new_vertex.z = rotated_z;
 
-    // Rotation matrix around the Z axis
-    let rotation_matrix_z = Mat4::new(
-        cos_z, -sin_z, 0.0, 0.0,
-        sin_z,  cos_z, 0.0, 0.0,
-        0.0,    0.0,  1.0, 0.0,
-        0.0,    0.0,  0.0, 1.0,
-    );
+    // Rotate Y
+    let rotated_x = new_vertex.x * cos_y + new_vertex.z * sin_y;
+    let rotated_z = -new_vertex.x * sin_y + new_vertex.z * cos_y;
+    new_vertex.x = rotated_x;
+    new_vertex.z = rotated_z;
 
-    // Combine the rotation matrices
-    let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
+    // Rotate Z
+    let rotated_x = new_vertex.x * cos_z - new_vertex.y * sin_z;
+    let rotated_y = new_vertex.x * sin_z + new_vertex.y * cos_z;
+    new_vertex.x = rotated_x;
+    new_vertex.y = rotated_y;
 
-    // Scale and translation matrix
-    let transform_matrix = Mat4::new(
-        scale, 0.0,   0.0,   translation.x,
-        0.0,   scale, 0.0,   translation.y,
-        0.0,   0.0,   scale, translation.z,
-        0.0,   0.0,   0.0,   1.0,
-    );
+    // Scale
+    new_vertex.x *= scale;
+    new_vertex.y *= scale;
+    new_vertex.z *= scale;
 
-    // Apply the transformation
-    let augmented_vertex = Vec4::new(vertex.x, vertex.y, vertex.z, 1.0);
-    let transformed_vertex = transform_matrix * rotation_matrix * augmented_vertex;
+    // Translate
+    new_vertex.x += translation.x;
+    new_vertex.y += translation.y;
+    new_vertex.z += translation.z;
 
-    Vec3::new(
-        transformed_vertex.x / transformed_vertex.w,
-        transformed_vertex.y / transformed_vertex.w,
-        transformed_vertex.z / transformed_vertex.w,
-    )
+    new_vertex
 }
 
 fn render_cube(
     framebuffer: &mut Framebuffer,
-    center: Vec3,
-    translation: Vec3,
+    center: Vector3,
+    translation: Vector3,
     scale: f32,
-    rotation: Vec3,
+    rotation: Vector3,
 ) {
-    let v1 = Vec3::new(center.x - 0.5, center.y - 0.5, center.z - 0.5); 
-    let v2 = Vec3::new(center.x + 0.5, center.y - 0.5, center.z - 0.5);
-    let v3 = Vec3::new(center.x + 0.5, center.y + 0.5, center.z - 0.5);
-    let v4 = Vec3::new(center.x - 0.5, center.y + 0.5, center.z - 0.5);
-    let v5 = Vec3::new(center.x - 0.5, center.y - 0.5, center.z + 0.5);
-    let v6 = Vec3::new(center.x + 0.5, center.y - 0.5, center.z + 0.5);
-    let v7 = Vec3::new(center.x + 0.5, center.y + 0.5, center.z + 0.5);
-    let v8 = Vec3::new(center.x - 0.5, center.y + 0.5, center.z + 0.5);
+    let v1 = Vector3::new(center.x - 0.5, center.y - 0.5, center.z - 0.5); 
+    let v2 = Vector3::new(center.x + 0.5, center.y - 0.5, center.z - 0.5);
+    let v3 = Vector3::new(center.x + 0.5, center.y + 0.5, center.z - 0.5);
+    let v4 = Vector3::new(center.x - 0.5, center.y + 0.5, center.z - 0.5);
+    let v5 = Vector3::new(center.x - 0.5, center.y - 0.5, center.z + 0.5);
+    let v6 = Vector3::new(center.x + 0.5, center.y - 0.5, center.z + 0.5);
+    let v7 = Vector3::new(center.x + 0.5, center.y + 0.5, center.z + 0.5);
+    let v8 = Vector3::new(center.x - 0.5, center.y + 0.5, center.z + 0.5);
 
     let t1 = transform(v1, translation, scale, rotation);
     let t2 = transform(v2, translation, scale, rotation);
@@ -87,112 +75,93 @@ fn render_cube(
     let t8 = transform(v8, translation, scale, rotation);
 
     // Front face
-    framebuffer.triangle(t1, t2, t4);
-    framebuffer.triangle(t2, t3, t4);
+    triangle(framebuffer, t1, t2, t4);
+    triangle(framebuffer, t2, t3, t4);
 
     // Back face
-    framebuffer.triangle(t5, t6, t8);
-    framebuffer.triangle(t6, t7, t8);
+    triangle(framebuffer, t5, t6, t8);
+    triangle(framebuffer, t6, t7, t8);
 
     // Right face
-    framebuffer.triangle(t2, t6, t3);
-    framebuffer.triangle(t6, t7, t3);
+    triangle(framebuffer, t2, t6, t3);
+    triangle(framebuffer, t6, t7, t3);
 
     // Left face
-    framebuffer.triangle(t1, t5, t4);
-    framebuffer.triangle(t5, t8, t4);
+    triangle(framebuffer, t1, t5, t4);
+    triangle(framebuffer, t5, t8, t4);
 
     // Top face
-    framebuffer.triangle(t3, t7, t4);
-    framebuffer.triangle(t7, t8, t4);
+    triangle(framebuffer, t3, t7, t4);
+    triangle(framebuffer, t7, t8, t4);
 
     // Bottom face
-    framebuffer.triangle(t1, t2, t5);
-    framebuffer.triangle(t2, t6, t5);
+    triangle(framebuffer, t1, t2, t5);
+    triangle(framebuffer, t2, t6, t5);
 }
 
 fn main() {
     let window_width = 800;
     let window_height = 600;
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
-    let frame_delay = Duration::from_millis(16);
 
-    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
-    let mut window = Window::new(
-        "Rust Graphics - Framebuffer Example",
-        window_width,
-        window_height,
-        WindowOptions::default(),
-    )
-        .unwrap();
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Window Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
+        .build();
 
-    // move the window around
-    window.set_position(500, 500);
-    window.update();
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
-    framebuffer.set_background_color(0x333355);
+    framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-    let mut translation = Vec3::new(300.0, 200.0, 0.0);
-    let mut rotation = Vec3::new(0.0, 0.0, 0.0);
+    let mut translation = Vector3::new(400.0, 300.0, 0.0);
+    let mut rotation = Vector3::new(0.0, 0.0, 0.0);
     let mut scale = 100.0f32;
 
-    while window.is_open() {
-        // listen to inputs
-        if window.is_key_down(Key::Escape) {
-            break;
-        }
-        if window.is_key_down(Key::Right) {
+    while !window.window_should_close() {
+        if window.is_key_down(KeyboardKey::KEY_RIGHT) {
             translation.x += 1.0;
         }
-        if window.is_key_down(Key::Left) {
+        if window.is_key_down(KeyboardKey::KEY_LEFT) {
             translation.x -= 1.0;
         }
-        if window.is_key_down(Key::Up) {
+        if window.is_key_down(KeyboardKey::KEY_UP) {
             translation.y -= 1.0;
         }
-        if window.is_key_down(Key::Down) {
+        if window.is_key_down(KeyboardKey::KEY_DOWN) {
             translation.y += 1.0;
         }
-        if window.is_key_down(Key::S) {
-            scale += 0.1;
+        if window.is_key_down(KeyboardKey::KEY_S) {
+            scale += 1.0;
         }
-        if window.is_key_down(Key::A) {
-            scale -= 0.1;
+        if window.is_key_down(KeyboardKey::KEY_A) {
+            scale -= 1.0;
         }
-        if window.is_key_down(Key::Q) {
-            rotation.x -= PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_Q) {
+            rotation.x -= 1.0;
         }
-        if window.is_key_down(Key::W) {
-            rotation.x += PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_W) {
+            rotation.x += 1.0;
         }
-        if window.is_key_down(Key::E) {
-            rotation.y -= PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_E) {
+            rotation.y -= 1.0;
         }
-        if window.is_key_down(Key::R) {
-            rotation.y += PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_R) {
+            rotation.y += 1.0;
         }
-        if window.is_key_down(Key::T) {
-            rotation.z -= PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_T) {
+            rotation.z -= 1.0;
         }
-        if window.is_key_down(Key::Y) {
-            rotation.z += PI / 10.0;
+        if window.is_key_down(KeyboardKey::KEY_Y) {
+            rotation.z += 1.0;
         }
 
-
-        // Clear the framebuffer
         framebuffer.clear();
-
-        // Draw some points
-        framebuffer.set_current_color(0xFFDDDD);
-        let vertex = Vec3::new(0.0, 0.0, 0.0);
+        framebuffer.set_current_color(Color::GREEN);
+        let vertex = Vector3::new(0.0, 0.0, 0.0);
         render_cube(&mut framebuffer, vertex, translation, scale, rotation);
 
-        // Update the window with the framebuffer contents
-        window
-            .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-            .unwrap();
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
 
-        std::thread::sleep(frame_delay);
+        thread::sleep(Duration::from_millis(16));
     }
 }
