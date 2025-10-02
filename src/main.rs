@@ -16,9 +16,9 @@ fn render(framebuffer: &mut Framebuffer) {
 
     // Draw some points
     framebuffer.set_current_color(Color::GREEN);
-    let v1 = Vector2::new(100.0, 100.0);
-    let v2 = Vector2::new(200.0, 100.0);
-    let v3 = Vector2::new(150.0, 200.0);
+    let v1 = Vector3::new(100.0, 100.0, 0.0);
+    let v2 = Vector3::new(200.0, 100.0, 0.0);
+    let v3 = Vector3::new(150.0, 200.0, 0.0);
     triangle(framebuffer, v1, v2, v3);
 }
 
