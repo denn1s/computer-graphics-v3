@@ -1,55 +1,51 @@
-use nalgebra_glm::Vec3;
-use minifb::{Key, Window, WindowOptions};
-use std::time::Duration;
+// main.rs
+
 mod framebuffer;
 mod line;
 mod triangle;
+
 use framebuffer::Framebuffer;
-use triangle::Triangle;
+use triangle::triangle;
+use raylib::prelude::*;
+use std::thread;
+use std::time::Duration;
 
 fn render(framebuffer: &mut Framebuffer) {
     // Clear the framebuffer
     framebuffer.clear();
 
     // Draw some points
-    framebuffer.set_current_color(0xFFDDDD);
-    let v1 = Vec3::new(20.0, 10.0, 0.0);
-    let v2 = Vec3::new(60.0, 50.0, 0.0);
-    let v3 = Vec3::new(10.0, 30.0, 0.0);
-    framebuffer.triangle(v1, v2, v3);
+    framebuffer.set_current_color(Color::GREEN);
+    let v1 = Vector2::new(100.0, 100.0);
+    let v2 = Vector2::new(200.0, 100.0);
+    let v3 = Vector2::new(150.0, 200.0);
+    triangle(framebuffer, v1, v2, v3);
 }
 
 fn main() {
     let window_width = 800;
     let window_height = 600;
-    let framebuffer_width = 80;
-    let framebuffer_height = 60;
-    let frame_delay = Duration::from_millis(16);
 
-    let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
-    framebuffer.set_background_color(0x333355);
+    let (mut window, raylib_thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Window Example")
+        .log_level(TraceLogLevel::LOG_WARNING)
+        .build();
 
-    let mut window = Window::new(
-        "Rust Graphics - Framebuffer Example",
-        window_width,
-        window_height,
-        WindowOptions::default(),
-    ).unwrap();
+    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
 
-    while window.is_open() {
-        // listen to inputs
-        if window.is_key_down(Key::Escape) {
-            break;
-        }
+    framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-        // Call the render function and pass the framebuffer as a mutable reference
+    while !window.window_should_close() {
+        // 1. clear framebuffer
+        framebuffer.clear();
+
+        // 2. draw in the screen
         render(&mut framebuffer);
 
-        // Update the window with the framebuffer contents
-        window
-            .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
-            .unwrap();
+        // 3. swap buffers
+        framebuffer.swap_buffers(&mut window, &raylib_thread);
 
-        std::thread::sleep(frame_delay);
+        thread::sleep(Duration::from_millis(16));
     }
 }
