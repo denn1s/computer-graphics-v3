@@ -61,7 +61,9 @@
     Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
 
 This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
-=======
+
+# Lesson 2: Windows, Window Managers, Operating Systems, and Video Drivers
+
 In this lesson, we'll explore the concepts of windows, window managers, operating systems, and video drivers, and how they relate to each other in the context of computer graphics.
 
 ## Definitions
@@ -92,16 +94,25 @@ The interaction between the operating system, window manager, and video driver c
 
 Understanding this abstraction process and the role of each component is essential for developing graphical app
 
-1. Updated README.md:
+Core Changes:
+
+1. Updated `.gitignore`:
+   - Removed `*.png` from ignored files.
+
+2. Modified `Cargo.toml`:
+   - Changed Rust edition from "2021" to "2024".
+   - Added a `[profile.dev]` section with `opt-level = 3` and `debug = false`.
+
+3. Updated README.md:
    - Changed the title and introduction to focus on windows, window managers, operating systems, and video drivers.
    - Reorganized content to explain the abstraction of windows.
    - Added sections on window managers in different operating systems.
 
-2. Modified src/framebuffer.rs:
+4. Modified `src/framebuffer.rs`:
    - Introduced a new `_render_to_file` method (renamed from `render_to_file`).
    - Added a new `swap_buffers` method that interacts with Raylib for rendering.
 
-3. Updated src/main.rs:
+5. Updated `src/main.rs`:
    - Imported `framebuffer` module.
    - Initialized a Raylib window and thread.
    - Implemented a main loop that calls `swap_buffers` continuously.
@@ -123,3 +134,27 @@ Direct Impacts:
 7. Window Management Integration: The changes allow for better integration with window management systems through Raylib.
 
 8. Continuous Rendering: The main loop now continuously updates the framebuffer and renders it to the window, enabling smoother animations and interactions.
+
+### Core Changes
+
+1. **New Framebuffer Class**: A new `Framebuffer` class was introduced, replacing the previous implementation.
+
+2. **Dependency Addition**: The `raylib` library was added as a dependency.
+
+3. **Structural Changes**: The `Framebuffer` now uses `raylib::Image` instead of a raw buffer array.
+
+4. **Method Renamings**: Several methods were renamed for clarity and consistency.
+
+5. **Color Representation**: Colors are now represented using `raylib::Color` instead of `u32`.
+
+### Direct Impact
+
+1. **Simplified API**: The new `Framebuffer` class provides a more intuitive and easier-to-use interface.
+
+2. **Improved Performance**: Using `raylib::Image` likely improves performance compared to manual buffer management.
+
+3. **Enhanced Features**: The addition of `raylib` brings additional functionality and better graphics capabilities.
+
+4. **Compatibility Issues**: Code using the old `Framebuffer` might need updates to work with the new implementation.
+
+5. **Learning Curve**: Developers familiar with the old implementation may need time to adapt to the new `raylib`-based approach.
