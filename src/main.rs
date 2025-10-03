@@ -7,7 +7,9 @@ mod vertex;
 mod fragment;
 mod shaders;
 mod obj;
+mod matrix;
 
+use crate::matrix::new_matrix4;
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use triangle::triangle;
@@ -23,15 +25,53 @@ pub struct Uniforms {
 }
 
 fn create_model_matrix(translation: Vector3, scale: f32, rotation: Vector3) -> Matrix {
-    let rotation_matrix_x = Matrix::rotate_x(rotation.x);
-    let rotation_matrix_y = Matrix::rotate_y(rotation.y);
-    let rotation_matrix_z = Matrix::rotate_z(rotation.z);
+    let (sin_x, cos_x) = rotation.x.sin_cos();
+    let (sin_y, cos_y) = rotation.y.sin_cos();
+    let (sin_z, cos_z) = rotation.z.sin_cos();
+
+    // Rotation around the X-axis
+    let rotation_matrix_x = new_matrix4(
+        1.0, 0.0,    0.0,    0.0,
+        0.0, cos_x,  -sin_x, 0.0,
+        0.0, sin_x,  cos_x,  0.0,
+        0.0, 0.0,    0.0,    1.0
+    );
+
+    // Rotation around the Y-axis
+    let rotation_matrix_y = new_matrix4(
+        cos_y,  0.0, sin_y, 0.0,
+        0.0,    1.0, 0.0,   0.0,
+        -sin_y, 0.0, cos_y, 0.0,
+        0.0,    0.0, 0.0,   1.0
+    );
+
+    // Rotation around the Z-axis
+    let rotation_matrix_z = new_matrix4(
+        cos_z, -sin_z, 0.0, 0.0,
+        sin_z, cos_z,  0.0, 0.0,
+        0.0,   0.0,    1.0, 0.0,
+        0.0,   0.0,    0.0, 1.0
+    );
+
     let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
 
-    let scale_matrix = Matrix::scale(scale, scale, scale);
-    let translation_matrix = Matrix::translate(translation.x, translation.y, translation.z);
+    // Scaling matrix
+    let scale_matrix = new_matrix4(
+        scale, 0.0,   0.0,   0.0,
+        0.0,   scale, 0.0,   0.0,
+        0.0,   0.0,   scale, 0.0,
+        0.0,   0.0,   0.0,   1.0
+    );
 
-    translation_matrix * rotation_matrix * scale_matrix
+    // Translation matrix
+    let translation_matrix = new_matrix4(
+        1.0, 0.0, 0.0, translation.x,
+        0.0, 1.0, 0.0, translation.y,
+        0.0, 0.0, 1.0, translation.z,
+        0.0, 0.0, 0.0, 1.0
+    );
+
+    scale_matrix * rotation_matrix * translation_matrix
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -43,10 +83,10 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     }
 
     // Log the first 3 transformed vertices for debugging
-    println!("--- Transformed Vertices (first 3) ---");
-    for i in 0..3.min(transformed_vertices.len()) {
-        println!("Vertex {}: {:?}", i, transformed_vertices[i].transformed_position);
-    }
+    // println!("--- Transformed Vertices (first 3) ---");
+    // for i in 0..3.min(transformed_vertices.len()) {
+    //     println!("Vertex {}: {:?}", i, transformed_vertices[i].transformed_position);
+    // }
 
     // Primitive Assembly Stage
     let mut triangles = Vec::new();
@@ -92,9 +132,9 @@ fn main() {
     // Initialize the texture inside the framebuffer
     framebuffer.init_texture(&mut window, &thread);
 
-    let mut translation = Vector3::new(400.0, 300.0, 0.0);
+    let mut translation = Vector3::new(300.0, 300.0, 0.0);
     let mut rotation = Vector3::new(0.0, 0.0, 0.0);
-    let mut scale = 1.2f32; // Set scale to 1.2
+    let mut scale = 50.0f32; // Set scale to 1.2
 
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
