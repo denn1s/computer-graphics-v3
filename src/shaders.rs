@@ -63,66 +63,45 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
   }
 }
 
-// === Fragment Shader Examples ===
+// === Animated Fragment Shader Examples ===
 
-/// Example 1: Sine wave pattern in world space
+/// Example 1: Random flickering colors per fragment
 #[allow(dead_code)]
-fn shader_sine_waves(fragment: &Fragment) -> Vector3 {
+fn shader_random_flicker(fragment: &Fragment, time: f32) -> Vector3 {
     let world_pos = fragment.world_position;
     let base_color = fragment.color;
 
-    let x_pattern = (world_pos.x * 5.0).sin() * 0.5 + 0.5;
-    let y_pattern = (world_pos.y * 5.0).cos() * 0.5 + 0.5;
-    let z_pattern = (world_pos.z * 5.0).sin() * 0.5 + 0.5;
+    // Create pseudo-random values based on position and time
+    let seed = world_pos.x * 12.9898 + world_pos.y * 78.233 + world_pos.z * 45.164 + time * 3.0;
+    let random = (seed.sin() * 43758.5453).fract();
 
-    let pattern_color = Vector3::new(x_pattern, y_pattern, z_pattern);
-
-    Vector3::new(
-        base_color.x * 0.7 + pattern_color.x * 0.3,
-        base_color.y * 0.7 + pattern_color.y * 0.3,
-        base_color.z * 0.7 + pattern_color.z * 0.3,
-    )
-}
-
-/// Example 2: Horizontal stripes based on world Y position
-#[allow(dead_code)]
-fn shader_horizontal_stripes(fragment: &Fragment) -> Vector3 {
-    let world_pos = fragment.world_position;
-    let base_color = fragment.color;
-
-    // Create stripes by taking modulo of Y position
-    let stripe_frequency = 0.5;
-    let stripe = ((world_pos.y * stripe_frequency).floor() % 2.0).abs();
-
-    // Alternate between two colors
-    let stripe_color1 = Vector3::new(1.0, 0.5, 0.2); // Orange
-    let stripe_color2 = Vector3::new(0.2, 0.5, 1.0); // Blue
-
-    let stripe_color = Vector3::new(
-        stripe_color1.x * stripe + stripe_color2.x * (1.0 - stripe),
-        stripe_color1.y * stripe + stripe_color2.y * (1.0 - stripe),
-        stripe_color1.z * stripe + stripe_color2.z * (1.0 - stripe),
+    let flicker_color = Vector3::new(
+        (random * 7.0).sin() * 0.5 + 0.5,
+        (random * 11.0).cos() * 0.5 + 0.5,
+        (random * 13.0).sin() * 0.5 + 0.5,
     );
 
-    // Blend with base color and lighting
+    // Mix with base lighting
     Vector3::new(
-        base_color.x * stripe_color.x,
-        base_color.y * stripe_color.y,
-        base_color.z * stripe_color.z,
+        base_color.x * 0.5 + flicker_color.x * 0.5,
+        base_color.y * 0.5 + flicker_color.y * 0.5,
+        base_color.z * 0.5 + flicker_color.z * 0.5,
     )
 }
 
-/// Example 3: Vertical stripes based on world X position
+/// Example 2: Horizontal stripes moving upward
 #[allow(dead_code)]
-fn shader_vertical_stripes(fragment: &Fragment) -> Vector3 {
+fn shader_moving_stripes(fragment: &Fragment, time: f32) -> Vector3 {
     let world_pos = fragment.world_position;
     let base_color = fragment.color;
 
+    // Add time to Y position to make stripes move upward
     let stripe_frequency = 1.0;
-    let stripe = ((world_pos.x * stripe_frequency).floor() % 2.0).abs();
+    let animated_y = world_pos.y + time * 0.5; // Speed of movement
+    let stripe = ((animated_y * stripe_frequency).floor() % 2.0).abs();
 
-    let stripe_color1 = Vector3::new(1.0, 0.0, 0.5); // Pink
-    let stripe_color2 = Vector3::new(0.0, 1.0, 0.5); // Cyan
+    let stripe_color1 = Vector3::new(1.0, 0.3, 0.1); // Orange
+    let stripe_color2 = Vector3::new(0.1, 0.3, 1.0); // Blue
 
     let stripe_color = Vector3::new(
         stripe_color1.x * stripe + stripe_color2.x * (1.0 - stripe),
@@ -137,98 +116,104 @@ fn shader_vertical_stripes(fragment: &Fragment) -> Vector3 {
     )
 }
 
-/// Example 4: Checkerboard pattern
+/// Example 3: Pulsing color waves
 #[allow(dead_code)]
-fn shader_checkerboard(fragment: &Fragment) -> Vector3 {
+fn shader_pulsing_waves(fragment: &Fragment, time: f32) -> Vector3 {
     let world_pos = fragment.world_position;
     let base_color = fragment.color;
 
-    let scale = 1.0;
-    let x_check = (world_pos.x * scale).floor() % 2.0;
-    let z_check = (world_pos.z * scale).floor() % 2.0;
+    // Animated sine waves that pulse over time
+    let wave1 = ((world_pos.x * 3.0 + time * 2.0).sin() * 0.5 + 0.5);
+    let wave2 = ((world_pos.y * 3.0 + time * 1.5).cos() * 0.5 + 0.5);
+    let wave3 = ((world_pos.z * 3.0 + time * 2.5).sin() * 0.5 + 0.5);
 
-    // XOR pattern for checkerboard
-    let checker = ((x_check + z_check) % 2.0).abs();
-
-    let color1 = Vector3::new(0.9, 0.9, 0.9); // Light gray
-    let color2 = Vector3::new(0.2, 0.2, 0.2); // Dark gray
-
-    let checker_color = Vector3::new(
-        color1.x * checker + color2.x * (1.0 - checker),
-        color1.y * checker + color2.y * (1.0 - checker),
-        color1.z * checker + color2.z * (1.0 - checker),
-    );
+    let wave_color = Vector3::new(wave1, wave2, wave3);
 
     Vector3::new(
-        base_color.x * checker_color.x,
-        base_color.y * checker_color.y,
-        base_color.z * checker_color.z,
+        base_color.x * 0.6 + wave_color.x * 0.4,
+        base_color.y * 0.6 + wave_color.y * 0.4,
+        base_color.z * 0.6 + wave_color.z * 0.4,
     )
 }
 
-/// Example 5: Distance-based gradient from origin
+/// Example 4: Rotating rainbow gradient
 #[allow(dead_code)]
-fn shader_radial_gradient(fragment: &Fragment) -> Vector3 {
+fn shader_rotating_rainbow(fragment: &Fragment, time: f32) -> Vector3 {
     let world_pos = fragment.world_position;
     let base_color = fragment.color;
 
-    // Calculate distance from origin
+    // Create rotating rainbow effect
+    let angle = world_pos.x.atan2(world_pos.z) + time;
+    let hue = (angle / (2.0 * 3.14159)) % 1.0;
+
+    // Convert hue to RGB (simplified HSV to RGB)
+    let rainbow_color = Vector3::new(
+        ((hue * 6.0).sin()).abs(),
+        ((hue * 6.0 + 2.0).sin()).abs(),
+        ((hue * 6.0 + 4.0).sin()).abs(),
+    );
+
+    Vector3::new(
+        base_color.x * 0.5 + rainbow_color.x * 0.5,
+        base_color.y * 0.5 + rainbow_color.y * 0.5,
+        base_color.z * 0.5 + rainbow_color.z * 0.5,
+    )
+}
+
+/// Example 5: Expanding rings from origin
+#[allow(dead_code)]
+fn shader_expanding_rings(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+    let base_color = fragment.color;
+
+    // Distance from origin
     let distance = (world_pos.x * world_pos.x + world_pos.y * world_pos.y + world_pos.z * world_pos.z).sqrt();
 
-    // Create gradient based on distance
-    let gradient = (distance * 2.0).sin() * 0.5 + 0.5;
+    // Animated rings expanding outward
+    let ring = ((distance * 2.0 - time * 2.0).sin() * 0.5 + 0.5);
 
-    let gradient_color = Vector3::new(
-        gradient,
-        1.0 - gradient,
-        (gradient * 2.0) % 1.0,
-    );
+    let ring_color = Vector3::new(ring, 1.0 - ring, ring * 0.5);
 
     Vector3::new(
-        base_color.x * 0.5 + gradient_color.x * 0.5,
-        base_color.y * 0.5 + gradient_color.y * 0.5,
-        base_color.z * 0.5 + gradient_color.z * 0.5,
+        base_color.x * 0.5 + ring_color.x * 0.5,
+        base_color.y * 0.5 + ring_color.y * 0.5,
+        base_color.z * 0.5 + ring_color.z * 0.5,
     )
 }
 
-/// Example 6: Screen-space effect (doesn't move with model)
+/// Example 6: Breathing/pulsing color intensity
 #[allow(dead_code)]
-fn shader_screen_space_pattern(fragment: &Fragment) -> Vector3 {
-    let screen_pos = fragment.position;
+fn shader_breathing(fragment: &Fragment, time: f32) -> Vector3 {
     let base_color = fragment.color;
 
-    let x_pattern = (screen_pos.x / 50.0).sin() * 0.5 + 0.5;
-    let y_pattern = (screen_pos.y / 50.0).cos() * 0.5 + 0.5;
-
-    let pattern_color = Vector3::new(
-        x_pattern,
-        y_pattern,
-        (x_pattern + y_pattern) / 2.0,
-    );
+    // Pulse intensity over time
+    let pulse = (time * 2.0).sin() * 0.3 + 0.7; // Range: 0.4 to 1.0
 
     Vector3::new(
-        base_color.x * 0.5 + pattern_color.x * 0.5,
-        base_color.y * 0.5 + pattern_color.y * 0.5,
-        base_color.z * 0.5 + pattern_color.z * 0.5,
+        base_color.x * pulse,
+        base_color.y * pulse,
+        base_color.z * pulse,
     )
 }
 
 /// Example 7: Just pass through the base color (standard lighting only)
 #[allow(dead_code)]
-fn shader_base_color(fragment: &Fragment) -> Vector3 {
+fn shader_base_color(fragment: &Fragment, _time: f32) -> Vector3 {
     fragment.color
 }
 
 // === Main Fragment Shader ===
-pub fn fragment_shader(fragment: &Fragment, _uniforms: &Uniforms) -> Vector3 {
-    // Uncomment one of the shader examples below to see different effects!
-    // Try each one and observe how they behave as the model rotates
+pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
+    let time = uniforms.time;
 
-    // shader_sine_waves(fragment)
-    // shader_horizontal_stripes(fragment)
-    // shader_vertical_stripes(fragment)
-    // shader_checkerboard(fragment)
-    // shader_radial_gradient(fragment)
-    // shader_screen_space_pattern(fragment)
-    shader_base_color(fragment) // Default: just show the lighting
+    // Uncomment one of the shader examples below to see different animated effects!
+    // Each shader uses the 'time' uniform to create animations
+
+    // shader_random_flicker(fragment, time)
+    // shader_moving_stripes(fragment, time)
+    // shader_pulsing_waves(fragment, time)
+    // shader_rotating_rainbow(fragment, time)
+    // shader_expanding_rings(fragment, time)
+    // shader_breathing(fragment, time)
+    shader_base_color(fragment, time) // Default: just show the lighting
 }

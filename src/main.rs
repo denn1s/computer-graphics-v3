@@ -29,6 +29,7 @@ pub struct Uniforms {
     pub view_matrix: Matrix,
     pub projection_matrix: Matrix,
     pub viewport_matrix: Matrix,
+    pub time: f32,
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], light: &Light) {
@@ -117,7 +118,13 @@ fn main() {
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
+    let mut elapsed_time = 0.0f32;
+
     while !window.window_should_close() {
+        // Get delta time from Raylib
+        let delta_time = window.get_frame_time();
+        elapsed_time += delta_time;
+
         // Process camera input
         camera.process_input(&window);
 
@@ -137,6 +144,7 @@ fn main() {
             view_matrix,
             projection_matrix,
             viewport_matrix,
+            time: elapsed_time,
         };
 
         render(&mut framebuffer, &uniforms, &vertex_array, &light);
