@@ -99,9 +99,10 @@ fn main() {
     let near = 0.1;
     let far = 100.0;
 
-    // Model setup (static model at origin)
+    // Model setup (rotating model at origin)
     let translation = Vector3::new(0.0, 0.0, 0.0);
-    let rotation = Vector3::new(0.0, 0.0, 0.0);
+    let mut rotation_y = 0.0f32;
+    let rotation_speed = 0.02; // Radians per frame
     let scale = 1.0f32;
 
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
@@ -111,8 +112,12 @@ fn main() {
         // Process camera input
         camera.process_input(&window);
 
+        // Update model rotation
+        rotation_y += rotation_speed;
+
         framebuffer.clear();
 
+        let rotation = Vector3::new(0.0, rotation_y, 0.0);
         let model_matrix = create_model_matrix(translation, scale, rotation);
         let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(fov_y, aspect, near, far);
@@ -129,6 +134,17 @@ fn main() {
 
         // Call the encapsulated swap_buffers function
         framebuffer.swap_buffers(&mut window, &thread);
+
+        // Draw crosshair at center of screen using raylib
+        let mut d = window.begin_drawing(&thread);
+        let center_x = window_width / 2;
+        let center_y = window_height / 2;
+        let crosshair_size = 10;
+
+        // Draw horizontal line
+        d.draw_line(center_x - crosshair_size, center_y, center_x + crosshair_size, center_y, Color::WHITE);
+        // Draw vertical line
+        d.draw_line(center_x, center_y - crosshair_size, center_x, center_y + crosshair_size, Color::WHITE);
 
         thread::sleep(Duration::from_millis(16));
     }
