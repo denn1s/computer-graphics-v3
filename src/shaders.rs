@@ -21,20 +21,35 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     1.0
   );
 
-  // Apply the transformation by multiplying the model matrix with the vector
-  let transformed_vec4 = multiply_matrix_vector4(&uniforms.model_matrix, &position_vec4);
+  // Apply Model transformation
+  let world_position = multiply_matrix_vector4(&uniforms.model_matrix, &position_vec4);
 
-  // Perform perspective division to convert from homogeneous coordinates back to 3D Cartesian coordinates
-  let transformed_position = if transformed_vec4.w != 0.0 {
+  // Apply View transformation (camera)
+  let view_position = multiply_matrix_vector4(&uniforms.view_matrix, &world_position);
+
+  // Apply Projection transformation (perspective)
+  let clip_position = multiply_matrix_vector4(&uniforms.projection_matrix, &view_position);
+
+  // Perform perspective division to get NDC (Normalized Device Coordinates)
+  let ndc = if clip_position.w != 0.0 {
       Vector3::new(
-          transformed_vec4.x / transformed_vec4.w,
-          transformed_vec4.y / transformed_vec4.w,
-          transformed_vec4.z / transformed_vec4.w,
+          clip_position.x / clip_position.w,
+          clip_position.y / clip_position.w,
+          clip_position.z / clip_position.w,
       )
   } else {
-      // Avoid division by zero, though w should usually be 1 for model transformations
-      Vector3::new(transformed_vec4.x, transformed_vec4.y, transformed_vec4.z)
+      Vector3::new(clip_position.x, clip_position.y, clip_position.z)
   };
+
+  // Apply Viewport transformation to get screen coordinates
+  let ndc_vec4 = Vector4::new(ndc.x, ndc.y, ndc.z, 1.0);
+  let screen_position = multiply_matrix_vector4(&uniforms.viewport_matrix, &ndc_vec4);
+
+  let transformed_position = Vector3::new(
+      screen_position.x,
+      screen_position.y,
+      screen_position.z,
+  );
 
   // Create a new Vertex with the transformed position
   Vertex {

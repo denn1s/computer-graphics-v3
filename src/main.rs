@@ -9,7 +9,7 @@ mod shaders;
 mod obj;
 mod matrix;
 
-use crate::matrix::new_matrix4;
+use crate::matrix::{create_model_matrix, create_view_matrix, create_projection_matrix, create_viewport_matrix};
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use triangle::triangle;
@@ -22,56 +22,9 @@ use std::f32::consts::PI;
 
 pub struct Uniforms {
     pub model_matrix: Matrix,
-}
-
-fn create_model_matrix(translation: Vector3, scale: f32, rotation: Vector3) -> Matrix {
-    let (sin_x, cos_x) = rotation.x.sin_cos();
-    let (sin_y, cos_y) = rotation.y.sin_cos();
-    let (sin_z, cos_z) = rotation.z.sin_cos();
-
-    // Rotation around the X-axis
-    let rotation_matrix_x = new_matrix4(
-        1.0, 0.0,    0.0,    0.0,
-        0.0, cos_x,  -sin_x, 0.0,
-        0.0, sin_x,  cos_x,  0.0,
-        0.0, 0.0,    0.0,    1.0
-    );
-
-    // Rotation around the Y-axis
-    let rotation_matrix_y = new_matrix4(
-        cos_y,  0.0, sin_y, 0.0,
-        0.0,    1.0, 0.0,   0.0,
-        -sin_y, 0.0, cos_y, 0.0,
-        0.0,    0.0, 0.0,   1.0
-    );
-
-    // Rotation around the Z-axis
-    let rotation_matrix_z = new_matrix4(
-        cos_z, -sin_z, 0.0, 0.0,
-        sin_z, cos_z,  0.0, 0.0,
-        0.0,   0.0,    1.0, 0.0,
-        0.0,   0.0,    0.0, 1.0
-    );
-
-    let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
-
-    // Scaling matrix
-    let scale_matrix = new_matrix4(
-        scale, 0.0,   0.0,   0.0,
-        0.0,   scale, 0.0,   0.0,
-        0.0,   0.0,   scale, 0.0,
-        0.0,   0.0,   0.0,   1.0
-    );
-
-    // Translation matrix
-    let translation_matrix = new_matrix4(
-        1.0, 0.0, 0.0, translation.x,
-        0.0, 1.0, 0.0, translation.y,
-        0.0, 0.0, 1.0, translation.z,
-        0.0, 0.0, 0.0, 1.0
-    );
-
-    scale_matrix * rotation_matrix * translation_matrix
+    pub view_matrix: Matrix,
+    pub projection_matrix: Matrix,
+    pub viewport_matrix: Matrix,
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -132,9 +85,20 @@ fn main() {
     // Initialize the texture inside the framebuffer
     framebuffer.init_texture(&mut window, &thread);
 
-    let mut translation = Vector3::new(300.0, 300.0, 0.0);
+    let mut translation = Vector3::new(0.0, 0.0, 0.0);
     let mut rotation = Vector3::new(0.0, 0.0, 0.0);
-    let mut scale = 50.0f32; // Set scale to 1.2
+    let mut scale = 1.0f32;
+
+    // Camera setup
+    let camera_position = Vector3::new(0.0, 0.0, 5.0);
+    let camera_target = Vector3::new(0.0, 0.0, 0.0);
+    let camera_up = Vector3::new(0.0, 1.0, 0.0);
+
+    // Projection setup
+    let fov_y = PI / 3.0; // 60 degrees
+    let aspect = window_width as f32 / window_height as f32;
+    let near = 0.1;
+    let far = 100.0;
 
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
@@ -145,7 +109,16 @@ fn main() {
         framebuffer.clear();
 
         let model_matrix = create_model_matrix(translation, scale, rotation);
-        let uniforms = Uniforms { model_matrix };
+        let view_matrix = create_view_matrix(camera_position, camera_target, camera_up);
+        let projection_matrix = create_projection_matrix(fov_y, aspect, near, far);
+        let viewport_matrix = create_viewport_matrix(0.0, 0.0, window_width as f32, window_height as f32);
+
+        let uniforms = Uniforms {
+            model_matrix,
+            view_matrix,
+            projection_matrix,
+            viewport_matrix,
+        };
 
         render(&mut framebuffer, &uniforms, &vertex_array);
 
