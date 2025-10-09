@@ -1,5 +1,6 @@
 use raylib::prelude::*;
 use crate::vertex::Vertex;
+use crate::fragment::Fragment;
 use crate::Uniforms;
 
 // This function manually multiplies a 4x4 matrix with a 4D vector (in homogeneous coordinates)
@@ -60,4 +61,36 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     transformed_position,
     transformed_normal: vertex.normal, // Note: Correct normal transformation is more complex
   }
+}
+
+pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
+    // Access fragment properties (all interpolated values)
+    let _position = fragment.position;  // Screen-space position
+    let base_color = fragment.color;    // Interpolated color from triangle
+    let _depth = fragment.depth;        // Interpolated depth
+
+    // Access uniforms (non-interpolated global values)
+    let _model = &uniforms.model_matrix;
+    let _view = &uniforms.view_matrix;
+    let _projection = &uniforms.projection_matrix;
+    let _viewport = &uniforms.viewport_matrix;
+
+    // Create a colorful pattern based on screen position
+    // This is just for demonstration - you can compute any per-fragment effect here!
+    let x_pattern = (fragment.position.x / 50.0).sin() * 0.5 + 0.5;
+    let y_pattern = (fragment.position.y / 50.0).cos() * 0.5 + 0.5;
+
+    // Mix the base color with the pattern
+    let pattern_color = Vector3::new(
+        x_pattern,
+        y_pattern,
+        (x_pattern + y_pattern) / 2.0,
+    );
+
+    // Blend pattern with base color (50% each)
+    Vector3::new(
+        base_color.x * 0.5 + pattern_color.x * 0.5,
+        base_color.y * 0.5 + pattern_color.y * 0.5,
+        base_color.z * 0.5 + pattern_color.z * 0.5,
+    )
 }

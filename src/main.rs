@@ -17,7 +17,7 @@ use crate::light::Light;
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use triangle::triangle;
-use shaders::vertex_shader;
+use shaders::{vertex_shader, fragment_shader};
 use obj::Obj;
 use raylib::prelude::*;
 use std::thread;
@@ -65,10 +65,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
     // Fragment Processing Stage
     for fragment in fragments {
+        // Run fragment shader to compute final color
+        let final_color = fragment_shader(&fragment, uniforms);
+
         framebuffer.point(
             fragment.position.x as i32,
             fragment.position.y as i32,
-            fragment.color,
+            final_color,
             fragment.depth
         );
     }
