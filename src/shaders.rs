@@ -205,7 +205,7 @@ fn shader_base_color(fragment: &Fragment, _time: f32) -> Vector3 {
 
 /// Example 8: Cloud-like noise pattern using OpenSimplex noise
 #[allow(dead_code)]
-fn shader_clouds(fragment: &Fragment, time: f32) -> Vector3 {
+fn shader_clouds(fragment: &Fragment, _time: f32) -> Vector3 {
     let world_pos = fragment.world_position;
     let base_color = fragment.color;
 
@@ -253,6 +253,182 @@ fn shader_clouds(fragment: &Fragment, time: f32) -> Vector3 {
         base_color.x * cloud_color.x,
         base_color.y * cloud_color.y,
         base_color.z * cloud_color.z,
+    )
+}
+
+// === Multi-Pass Shader Components (Base Layers) ===
+
+/// Base Pass 1: Water gradient (vertical blue gradient)
+#[allow(dead_code)]
+fn pass_water_gradient(fragment: &Fragment, _time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+
+    // Create a vertical gradient based on Y position
+    let gradient = ((world_pos.y + 1.0) / 2.0).clamp(0.0, 1.0);
+
+    // Water colors: deep blue to cyan
+    let deep_water = Vector3::new(0.0, 0.1, 0.4);   // Deep blue
+    let shallow_water = Vector3::new(0.2, 0.6, 0.8); // Cyan
+
+    Vector3::new(
+        deep_water.x + (shallow_water.x - deep_water.x) * gradient,
+        deep_water.y + (shallow_water.y - deep_water.y) * gradient,
+        deep_water.z + (shallow_water.z - deep_water.z) * gradient,
+    )
+}
+
+/// Overlay Pass 1: Animated horizontal stripes
+#[allow(dead_code)]
+fn pass_animated_stripes(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+
+    // Animated stripes moving upward
+    let stripe_frequency = 3.0;
+    let animated_y = world_pos.y + time * 0.5;
+    let stripe = (animated_y * stripe_frequency).sin() * 0.5 + 0.5;
+
+    // Return stripe intensity (0 = transparent, 1 = opaque)
+    Vector3::new(stripe, stripe, stripe)
+}
+
+/// Base Pass 2: Sunset gradient
+#[allow(dead_code)]
+fn pass_sunset_gradient(fragment: &Fragment, _time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+
+    // Vertical gradient for sunset
+    let gradient = ((world_pos.y + 1.0) / 2.0).clamp(0.0, 1.0);
+
+    // Sunset colors: orange to purple
+    let bottom_color = Vector3::new(0.8, 0.3, 0.1); // Orange
+    let top_color = Vector3::new(0.2, 0.1, 0.4);    // Purple
+
+    Vector3::new(
+        bottom_color.x + (top_color.x - bottom_color.x) * gradient,
+        bottom_color.y + (top_color.y - bottom_color.y) * gradient,
+        bottom_color.z + (top_color.z - bottom_color.z) * gradient,
+    )
+}
+
+/// Overlay Pass 2: Pulsing wave pattern
+#[allow(dead_code)]
+fn pass_pulsing_waves(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+
+    // Wavy pattern that pulses
+    let wave = (world_pos.x * 4.0 + world_pos.z * 4.0 + time * 2.0).sin() * 0.5 + 0.5;
+
+    Vector3::new(wave, wave, wave)
+}
+
+/// Base Pass 3: Simple noise texture
+#[allow(dead_code)]
+fn pass_noise_base(fragment: &Fragment, _time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+    let noise = OpenSimplex::new(42);
+
+    let noise_value = noise.get([
+        (world_pos.x * 2.0) as f64,
+        (world_pos.y * 2.0) as f64,
+        (world_pos.z * 2.0) as f64,
+    ]);
+
+    let normalized = (noise_value as f32 + 1.0) / 2.0;
+
+    // Grayscale noise
+    Vector3::new(normalized, normalized, normalized)
+}
+
+/// Overlay Pass 3: Animated color shift
+#[allow(dead_code)]
+fn pass_color_shift(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+
+    // Shifting colors based on position and time
+    let r = (world_pos.x + time).sin() * 0.5 + 0.5;
+    let g = (world_pos.y + time * 1.3).cos() * 0.5 + 0.5;
+    let b = (world_pos.z + time * 0.7).sin() * 0.5 + 0.5;
+
+    Vector3::new(r, g, b)
+}
+
+// === Multi-Pass Shader Combinations ===
+
+/// Example: Water with animated stripes
+#[allow(dead_code)]
+fn shader_water_with_stripes(fragment: &Fragment, time: f32) -> Vector3 {
+    let base_color = fragment.color;
+
+    // Pass 1: Get water gradient
+    let water = pass_water_gradient(fragment, time);
+
+    // Pass 2: Get stripe overlay
+    let stripes = pass_animated_stripes(fragment, time);
+
+    // Combine: Use stripes as a mask (additive blend)
+    let combined = Vector3::new(
+        water.x + stripes.x * 0.3,
+        water.y + stripes.y * 0.3,
+        water.z + stripes.z * 0.3,
+    );
+
+    // Apply base lighting
+    Vector3::new(
+        combined.x * base_color.x,
+        combined.y * base_color.y,
+        combined.z * base_color.z,
+    )
+}
+
+/// Example: Sunset with pulsing waves
+#[allow(dead_code)]
+fn shader_sunset_waves(fragment: &Fragment, time: f32) -> Vector3 {
+    let base_color = fragment.color;
+
+    // Pass 1: Sunset gradient base
+    let sunset = pass_sunset_gradient(fragment, time);
+
+    // Pass 2: Pulsing waves overlay
+    let waves = pass_pulsing_waves(fragment, time);
+
+    // Combine: Multiply blend for waves
+    let combined = Vector3::new(
+        sunset.x * (0.7 + waves.x * 0.3),
+        sunset.y * (0.7 + waves.y * 0.3),
+        sunset.z * (0.7 + waves.z * 0.3),
+    );
+
+    // Apply base lighting
+    Vector3::new(
+        combined.x * base_color.x,
+        combined.y * base_color.y,
+        combined.z * base_color.z,
+    )
+}
+
+/// Example: Noise with color shifting
+#[allow(dead_code)]
+fn shader_noise_colorshift(fragment: &Fragment, time: f32) -> Vector3 {
+    let base_color = fragment.color;
+
+    // Pass 1: Noise texture base
+    let noise = pass_noise_base(fragment, time);
+
+    // Pass 2: Color shift overlay
+    let colors = pass_color_shift(fragment, time);
+
+    // Combine: Multiply the noise with the colors
+    let combined = Vector3::new(
+        noise.x * colors.x,
+        noise.y * colors.y,
+        noise.z * colors.z,
+    );
+
+    // Apply base lighting
+    Vector3::new(
+        combined.x * base_color.x,
+        combined.y * base_color.y,
+        combined.z * base_color.z,
     )
 }
 
@@ -325,8 +501,13 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
     // shader_breathing(fragment, time)
 
     // === Noise-based Shaders ===
-    shader_animated_clouds(fragment, time)  // Clouds that move over time
+    // shader_animated_clouds(fragment, time)  // Clouds that move over time
     // shader_clouds(fragment, time)           // Static cloud pattern
+
+    // === Multi-Pass Shaders (Combining Multiple Effects) ===
+    shader_water_with_stripes(fragment, time)  // Water gradient + animated stripes
+    // shader_sunset_waves(fragment, time)       // Sunset gradient + pulsing waves
+    // shader_noise_colorshift(fragment, time)   // Noise texture + color shifting
 
     // shader_base_color(fragment, time) // Default: just show the lighting
 }
