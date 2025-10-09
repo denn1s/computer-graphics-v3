@@ -2,6 +2,7 @@ use raylib::prelude::*;
 use crate::vertex::Vertex;
 use crate::fragment::Fragment;
 use crate::Uniforms;
+use noise::{NoiseFn, OpenSimplex};
 
 // This function manually multiplies a 4x4 matrix with a 4D vector (in homogeneous coordinates)
 fn multiply_matrix_vector4(matrix: &Matrix, vector: &Vector4) -> Vector4 {
@@ -202,18 +203,130 @@ fn shader_base_color(fragment: &Fragment, _time: f32) -> Vector3 {
     fragment.color
 }
 
+/// Example 8: Cloud-like noise pattern using OpenSimplex noise
+#[allow(dead_code)]
+fn shader_clouds(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+    let base_color = fragment.color;
+
+    // Create a noise generator (OpenSimplex)
+    let noise = OpenSimplex::new(42); // Seed value for consistent results
+
+    // Sample 3D noise at the fragment's world position
+    // Scale the position to control noise frequency
+    let noise_scale = 2.0;
+    let noise_value = noise.get([
+        (world_pos.x * noise_scale) as f64,
+        (world_pos.y * noise_scale) as f64,
+        (world_pos.z * noise_scale) as f64,
+    ]);
+
+    // Noise returns values in range [-1, 1], normalize to [0, 1]
+    let normalized_noise = (noise_value as f32 + 1.0) / 2.0;
+
+    // Add multiple octaves of noise for more detail (fractal noise)
+    let octave1 = noise.get([
+        (world_pos.x * noise_scale * 2.0) as f64,
+        (world_pos.y * noise_scale * 2.0) as f64,
+        (world_pos.z * noise_scale * 2.0) as f64,
+    ]) as f32;
+
+    let octave2 = noise.get([
+        (world_pos.x * noise_scale * 4.0) as f64,
+        (world_pos.y * noise_scale * 4.0) as f64,
+        (world_pos.z * noise_scale * 4.0) as f64,
+    ]) as f32;
+
+    // Combine octaves (fractal brownian motion)
+    let fbm = normalized_noise + octave1 * 0.5 + octave2 * 0.25;
+    let cloud_density = (fbm / 1.75).clamp(0.0, 1.0);
+
+    // Create cloud colors (white to light blue/gray)
+    let cloud_color = Vector3::new(
+        0.8 + cloud_density * 0.2,  // R: White to brighter
+        0.85 + cloud_density * 0.15, // G: Slightly blue-ish
+        0.9 + cloud_density * 0.1,   // B: Light blue tint
+    );
+
+    // Blend with base lighting
+    Vector3::new(
+        base_color.x * cloud_color.x,
+        base_color.y * cloud_color.y,
+        base_color.z * cloud_color.z,
+    )
+}
+
+/// Example 9: Animated cloud-like noise that moves over time
+#[allow(dead_code)]
+fn shader_animated_clouds(fragment: &Fragment, time: f32) -> Vector3 {
+    let world_pos = fragment.world_position;
+    let base_color = fragment.color;
+
+    let noise = OpenSimplex::new(42);
+
+    // Animate by offsetting the noise sampling position with time
+    let noise_scale = 1.5;
+    let time_offset = time * 0.3; // Speed of cloud movement
+
+    let noise_value = noise.get([
+        (world_pos.x * noise_scale + time_offset) as f64,
+        (world_pos.y * noise_scale) as f64,
+        (world_pos.z * noise_scale + time_offset) as f64,
+    ]);
+
+    let normalized_noise = (noise_value as f32 + 1.0) / 2.0;
+
+    // Add octaves for detail
+    let octave1 = noise.get([
+        (world_pos.x * noise_scale * 2.0 + time_offset * 1.5) as f64,
+        (world_pos.y * noise_scale * 2.0) as f64,
+        (world_pos.z * noise_scale * 2.0 + time_offset * 1.5) as f64,
+    ]) as f32;
+    let normalized_octave1 = (octave1 + 1.0) / 2.0;
+
+    let octave2 = noise.get([
+        (world_pos.x * noise_scale * 4.0 + time_offset * 2.0) as f64,
+        (world_pos.y * noise_scale * 4.0) as f64,
+        (world_pos.z * noise_scale * 4.0 + time_offset * 2.0) as f64,
+    ]) as f32;
+    let normalized_octave2 = (octave2 + 1.0) / 2.0;
+
+    // Combine octaves (fractal brownian motion)
+    let fbm = normalized_noise * 1.0 + normalized_octave1 * 0.5 + normalized_octave2 * 0.25;
+    let cloud_value = (fbm / 1.75).clamp(0.0, 1.0);
+
+    // More pronounced cloud colors - darker to lighter
+    let cloud_color = Vector3::new(
+        0.3 + cloud_value * 0.7,  // R: Dark to bright
+        0.4 + cloud_value * 0.6,  // G: Slightly more green
+        0.6 + cloud_value * 0.4,  // B: Blue-ish base
+    );
+
+    // Mix cloud pattern with base lighting
+    Vector3::new(
+        base_color.x * 0.5 + cloud_color.x * 0.5,
+        base_color.y * 0.5 + cloud_color.y * 0.5,
+        base_color.z * 0.5 + cloud_color.z * 0.5,
+    )
+}
+
 // === Main Fragment Shader ===
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
     let time = uniforms.time;
 
-    // Uncomment one of the shader examples below to see different animated effects!
-    // Each shader uses the 'time' uniform to create animations
+    // Uncomment one of the shader examples below to see different effects!
 
+    // === Animated Shaders ===
     // shader_random_flicker(fragment, time)
     // shader_moving_stripes(fragment, time)
     // shader_pulsing_waves(fragment, time)
     // shader_rotating_rainbow(fragment, time)
     // shader_expanding_rings(fragment, time)
     // shader_breathing(fragment, time)
-    shader_base_color(fragment, time) // Default: just show the lighting
+
+    // === Noise-based Shaders ===
+    shader_animated_clouds(fragment, time)  // Clouds that move over time
+    // shader_clouds(fragment, time)           // Static cloud pattern
+
+    // shader_base_color(fragment, time) // Default: just show the lighting
 }
