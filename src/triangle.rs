@@ -33,6 +33,11 @@ fn barycentric_coordinates(p_x: f32, p_y: f32, a: &Vertex, b: &Vertex, c: &Verte
 pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fragment> {
     let mut fragments = Vec::new();
 
+    // Assign RGB colors to the three vertices for interpolation demonstration
+    let color1 = Vector3::new(1.0, 0.0, 0.0); // Red
+    let color2 = Vector3::new(0.0, 0.0, 1.0); // Blue
+    let color3 = Vector3::new(0.0, 1.0, 0.0); // Green
+
     // Calculate face normal using cross product of two edges
     // Edge 1: v2 - v1
     let edge1 = Vector3::new(
@@ -86,17 +91,8 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
     }
 
     // Calculate lighting intensity using dot product (Lambertian shading)
+    // Keep this flat for now (same across entire triangle)
     let intensity = (normal.x * light_dir.x + normal.y * light_dir.y + normal.z * light_dir.z).max(0.0);
-
-    // Base color (gray)
-    let base_color = Vector3::new(0.5, 0.5, 0.5);
-
-    // Apply flat shading across entire triangle
-    let shaded_color = Vector3::new(
-        base_color.x * intensity,
-        base_color.y * intensity,
-        base_color.z * intensity,
-    );
 
     // Get the bounding box of the triangle
     let min_x = v1.transformed_position.x.min(v2.transformed_position.x).min(v3.transformed_position.x).floor() as i32;
@@ -115,8 +111,24 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
 
             // Check if point is inside the triangle
             if w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0 {
-                // Use the first vertex's depth for the entire triangle (flat depth)
-                let depth = v1.transformed_position.z;
+                // Interpolate color using barycentric coordinates
+                let interpolated_color = Vector3::new(
+                    w1 * color1.x + w2 * color2.x + w3 * color3.x,
+                    w1 * color1.y + w2 * color2.y + w3 * color3.y,
+                    w1 * color1.z + w2 * color2.z + w3 * color3.z,
+                );
+
+                // Apply flat shading (same intensity across entire triangle)
+                let shaded_color = Vector3::new(
+                    interpolated_color.x * intensity,
+                    interpolated_color.y * intensity,
+                    interpolated_color.z * intensity,
+                );
+
+                // Interpolate depth using barycentric coordinates
+                let depth = w1 * v1.transformed_position.z
+                          + w2 * v2.transformed_position.z
+                          + w3 * v3.transformed_position.z;
 
                 fragments.push(Fragment::new(p_x, p_y, shaded_color, depth));
             }
