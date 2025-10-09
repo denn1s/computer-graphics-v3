@@ -1,5 +1,6 @@
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
+use crate::light::Light;
 use raylib::prelude::Vector3;
 
 /// Calculate barycentric coordinates for a point P with respect to triangle (A, B, C)
@@ -29,8 +30,73 @@ fn barycentric_coordinates(p_x: f32, p_y: f32, a: &Vertex, b: &Vertex, c: &Verte
     (w1, w2, w3)
 }
 
-pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
+pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fragment> {
     let mut fragments = Vec::new();
+
+    // Calculate face normal using cross product of two edges
+    // Edge 1: v2 - v1
+    let edge1 = Vector3::new(
+        v2.position.x - v1.position.x,
+        v2.position.y - v1.position.y,
+        v2.position.z - v1.position.z,
+    );
+
+    // Edge 2: v3 - v1
+    let edge2 = Vector3::new(
+        v3.position.x - v1.position.x,
+        v3.position.y - v1.position.y,
+        v3.position.z - v1.position.z,
+    );
+
+    // Normal = edge1 × edge2 (cross product)
+    let mut normal = Vector3::new(
+        edge1.y * edge2.z - edge1.z * edge2.y,
+        edge1.z * edge2.x - edge1.x * edge2.z,
+        edge1.x * edge2.y - edge1.y * edge2.x,
+    );
+
+    // Normalize the normal vector
+    let normal_length = (normal.x * normal.x + normal.y * normal.y + normal.z * normal.z).sqrt();
+    if normal_length > 0.0 {
+        normal.x /= normal_length;
+        normal.y /= normal_length;
+        normal.z /= normal_length;
+    }
+
+    // Calculate centroid of the triangle in world space
+    let centroid = Vector3::new(
+        (v1.position.x + v2.position.x + v3.position.x) / 3.0,
+        (v1.position.y + v2.position.y + v3.position.y) / 3.0,
+        (v1.position.z + v2.position.z + v3.position.z) / 3.0,
+    );
+
+    // Light direction (from surface to light)
+    let mut light_dir = Vector3::new(
+        light.position.x - centroid.x,
+        light.position.y - centroid.y,
+        light.position.z - centroid.z,
+    );
+
+    // Normalize light direction
+    let light_length = (light_dir.x * light_dir.x + light_dir.y * light_dir.y + light_dir.z * light_dir.z).sqrt();
+    if light_length > 0.0 {
+        light_dir.x /= light_length;
+        light_dir.y /= light_length;
+        light_dir.z /= light_length;
+    }
+
+    // Calculate lighting intensity using dot product (Lambertian shading)
+    let intensity = (normal.x * light_dir.x + normal.y * light_dir.y + normal.z * light_dir.z).max(0.0);
+
+    // Base color (gray)
+    let base_color = Vector3::new(0.5, 0.5, 0.5);
+
+    // Apply flat shading across entire triangle
+    let shaded_color = Vector3::new(
+        base_color.x * intensity,
+        base_color.y * intensity,
+        base_color.z * intensity,
+    );
 
     // Get the bounding box of the triangle
     let min_x = v1.transformed_position.x.min(v2.transformed_position.x).min(v3.transformed_position.x).floor() as i32;
@@ -49,11 +115,9 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
 
             // Check if point is inside the triangle
             if w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0 {
-                // Use a flat color for now (we'll add shading later)
-                let color = Vector3::new(1.0, 1.0, 1.0); // White
                 let depth = 0.0; // Depth will be added in a future lesson
 
-                fragments.push(Fragment::new(p_x, p_y, color, depth));
+                fragments.push(Fragment::new(p_x, p_y, shaded_color, depth));
             }
         }
     }
