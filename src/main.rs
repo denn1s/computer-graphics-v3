@@ -68,7 +68,8 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         framebuffer.point(
             fragment.position.x as i32,
             fragment.position.y as i32,
-            fragment.color
+            fragment.color,
+            fragment.depth
         );
     }
 }

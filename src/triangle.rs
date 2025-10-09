@@ -115,7 +115,8 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
 
             // Check if point is inside the triangle
             if w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0 {
-                let depth = 0.0; // Depth will be added in a future lesson
+                // Use the first vertex's depth for the entire triangle (flat depth)
+                let depth = v1.transformed_position.z;
 
                 fragments.push(Fragment::new(p_x, p_y, shaded_color, depth));
             }
