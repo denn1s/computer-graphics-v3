@@ -10,6 +10,7 @@ mod obj;
 mod matrix;
 mod camera;
 mod light;
+mod skybox;
 
 use crate::matrix::{create_model_matrix, create_projection_matrix, create_viewport_matrix};
 use crate::camera::Camera;
@@ -32,7 +33,7 @@ pub struct Uniforms {
     pub time: f32,
 }
 
-fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], light: &Light) {
+fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], light: &Light, is_skybox: bool) {
     // Vertex Shader Stage
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
@@ -67,7 +68,11 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     // Fragment Processing Stage
     for fragment in fragments {
         // Run fragment shader to compute final color
-        let final_color = fragment_shader(&fragment, uniforms);
+        let final_color = if is_skybox {
+            shaders::shader_skybox(&fragment)
+        } else {
+            fragment_shader(&fragment, uniforms)
+        };
 
         framebuffer.point(
             fragment.position.x as i32,
@@ -115,8 +120,12 @@ fn main() {
     // Light setup
     let light = Light::new(Vector3::new(5.0, 5.0, 5.0));
 
+    // Load main model
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
+
+    // Create sky sphere (large radius, low subdivisions for performance)
+    let sky_sphere_vertices = skybox::create_sky_sphere(50.0, 16);
 
     let mut elapsed_time = 0.0f32;
 
@@ -147,7 +156,24 @@ fn main() {
             time: elapsed_time,
         };
 
-        render(&mut framebuffer, &uniforms, &vertex_array, &light);
+        // Render sky sphere first (as background)
+        // Sky sphere is centered on camera position, so it moves with the camera
+        let sky_translation = camera.eye;  // Center on camera
+        let sky_rotation = Vector3::new(0.0, 0.0, 0.0);  // No rotation
+        let sky_model_matrix = create_model_matrix(sky_translation, 1.0, sky_rotation);
+
+        let sky_uniforms = Uniforms {
+            model_matrix: sky_model_matrix,
+            view_matrix,
+            projection_matrix,
+            viewport_matrix,
+            time: elapsed_time,
+        };
+
+        render(&mut framebuffer, &sky_uniforms, &sky_sphere_vertices, &light, true);
+
+        // Render main model
+        render(&mut framebuffer, &uniforms, &vertex_array, &light, false);
 
         // Call the encapsulated swap_buffers function
         framebuffer.swap_buffers(&mut window, &thread);

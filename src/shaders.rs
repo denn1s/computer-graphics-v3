@@ -486,6 +486,16 @@ fn shader_animated_clouds(fragment: &Fragment, time: f32) -> Vector3 {
     )
 }
 
+// === Skybox Shader ===
+// Generates procedural stars based on world position
+// This shader is camera-aware since it uses world position from the sky sphere
+pub fn shader_skybox(fragment: &Fragment) -> Vector3 {
+    use crate::skybox::generate_stars;
+
+    // Use the world position to generate stars
+    generate_stars(fragment.world_position)
+}
+
 // === Main Fragment Shader ===
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
     let time = uniforms.time;
