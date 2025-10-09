@@ -65,9 +65,10 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
 
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
     // Access fragment properties (all interpolated values)
-    let _position = fragment.position;  // Screen-space position
-    let base_color = fragment.color;    // Interpolated color from triangle
-    let _depth = fragment.depth;        // Interpolated depth
+    let _screen_position = fragment.position;  // Screen-space position
+    let base_color = fragment.color;           // Interpolated color from triangle
+    let _depth = fragment.depth;               // Interpolated depth
+    let world_pos = fragment.world_position;   // Interpolated world-space position
 
     // Access uniforms (non-interpolated global values)
     let _model = &uniforms.model_matrix;
@@ -75,22 +76,24 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Vector3 {
     let _projection = &uniforms.projection_matrix;
     let _viewport = &uniforms.viewport_matrix;
 
-    // Create a colorful pattern based on screen position
-    // This is just for demonstration - you can compute any per-fragment effect here!
-    let x_pattern = (fragment.position.x / 50.0).sin() * 0.5 + 0.5;
-    let y_pattern = (fragment.position.y / 50.0).cos() * 0.5 + 0.5;
+    // Create a colorful pattern based on WORLD-SPACE position
+    // This pattern will now move with the model as it rotates!
+    // The pattern is "painted" onto the model's surface in world coordinates
+    let x_pattern = (world_pos.x * 5.0).sin() * 0.5 + 0.5;
+    let y_pattern = (world_pos.y * 5.0).cos() * 0.5 + 0.5;
+    let z_pattern = (world_pos.z * 5.0).sin() * 0.5 + 0.5;
 
     // Mix the base color with the pattern
     let pattern_color = Vector3::new(
         x_pattern,
         y_pattern,
-        (x_pattern + y_pattern) / 2.0,
+        z_pattern,
     );
 
-    // Blend pattern with base color (50% each)
+    // Blend pattern with base color (70% base, 30% pattern for subtle effect)
     Vector3::new(
-        base_color.x * 0.5 + pattern_color.x * 0.5,
-        base_color.y * 0.5 + pattern_color.y * 0.5,
-        base_color.z * 0.5 + pattern_color.z * 0.5,
+        base_color.x * 0.7 + pattern_color.x * 0.3,
+        base_color.y * 0.7 + pattern_color.y * 0.3,
+        base_color.z * 0.7 + pattern_color.z * 0.3,
     )
 }

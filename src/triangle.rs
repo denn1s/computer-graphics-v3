@@ -85,10 +85,10 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
                     normalized_normal.z /= normal_length;
                 }
 
-                // Calculate position in world space for this fragment
+                // Interpolate position in world space for this fragment
                 let world_pos = Vector3::new(
                     w1 * v1.position.x + w2 * v2.position.x + w3 * v3.position.x,
-                    w1 * v1.position.y + w2 * v2.position.y + w3 * v3.position.z,
+                    w1 * v1.position.y + w2 * v2.position.y + w3 * v3.position.y,
                     w1 * v1.position.z + w2 * v2.position.z + w3 * v3.position.z,
                 );
 
@@ -124,7 +124,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
                           + w2 * v2.transformed_position.z
                           + w3 * v3.transformed_position.z;
 
-                fragments.push(Fragment::new(p_x, p_y, shaded_color, depth));
+                fragments.push(Fragment::new_with_world_pos(p_x, p_y, shaded_color, depth, world_pos));
             }
         }
     }
