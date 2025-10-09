@@ -8,8 +8,10 @@ mod fragment;
 mod shaders;
 mod obj;
 mod matrix;
+mod camera;
 
-use crate::matrix::{create_model_matrix, create_view_matrix, create_projection_matrix, create_viewport_matrix};
+use crate::matrix::{create_model_matrix, create_projection_matrix, create_viewport_matrix};
+use crate::camera::Camera;
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use triangle::triangle;
@@ -85,14 +87,11 @@ fn main() {
     // Initialize the texture inside the framebuffer
     framebuffer.init_texture(&mut window, &thread);
 
-    let mut translation = Vector3::new(0.0, 0.0, 0.0);
-    let mut rotation = Vector3::new(0.0, 0.0, 0.0);
-    let mut scale = 1.0f32;
-
     // Camera setup
-    let camera_position = Vector3::new(0.0, 0.0, 5.0);
+    let camera_position = Vector3::new(0.0, 1.0, 5.0);
     let camera_target = Vector3::new(0.0, 0.0, 0.0);
     let camera_up = Vector3::new(0.0, 1.0, 0.0);
+    let mut camera = Camera::new(camera_position, camera_target, camera_up);
 
     // Projection setup
     let fov_y = PI / 3.0; // 60 degrees
@@ -100,16 +99,22 @@ fn main() {
     let near = 0.1;
     let far = 100.0;
 
+    // Model setup (static model at origin)
+    let translation = Vector3::new(0.0, 0.0, 0.0);
+    let rotation = Vector3::new(0.0, 0.0, 0.0);
+    let scale = 1.0f32;
+
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
     while !window.window_should_close() {
-        handle_input(&mut window, &mut translation, &mut rotation, &mut scale);
+        // Process camera input
+        camera.process_input(&window);
 
         framebuffer.clear();
 
         let model_matrix = create_model_matrix(translation, scale, rotation);
-        let view_matrix = create_view_matrix(camera_position, camera_target, camera_up);
+        let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(fov_y, aspect, near, far);
         let viewport_matrix = create_viewport_matrix(0.0, 0.0, window_width as f32, window_height as f32);
 
@@ -126,44 +131,5 @@ fn main() {
         framebuffer.swap_buffers(&mut window, &thread);
 
         thread::sleep(Duration::from_millis(16));
-    }
-}
-
-fn handle_input(window: &mut RaylibHandle, translation: &mut Vector3, rotation: &mut Vector3, scale: &mut f32) {
-    if window.is_key_down(KeyboardKey::KEY_RIGHT) {
-        translation.x += 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_LEFT) {
-        translation.x -= 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_UP) {
-        translation.y -= 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_DOWN) {
-        translation.y += 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_S) {
-        *scale += 0.1;
-    }
-    if window.is_key_down(KeyboardKey::KEY_A) {
-        *scale -= 0.1;
-    }
-    if window.is_key_down(KeyboardKey::KEY_Q) {
-        rotation.x -= PI / 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_W) {
-        rotation.x += PI / 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_E) {
-        rotation.y -= PI / 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_R) {
-        rotation.y += PI / 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_T) {
-        rotation.z -= PI / 10.0;
-    }
-    if window.is_key_down(KeyboardKey::KEY_Y) {
-        rotation.z += PI / 10.0;
     }
 }
