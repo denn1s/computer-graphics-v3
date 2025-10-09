@@ -123,9 +123,9 @@ fn shader_pulsing_waves(fragment: &Fragment, time: f32) -> Vector3 {
     let base_color = fragment.color;
 
     // Animated sine waves that pulse over time
-    let wave1 = ((world_pos.x * 3.0 + time * 2.0).sin() * 0.5 + 0.5);
-    let wave2 = ((world_pos.y * 3.0 + time * 1.5).cos() * 0.5 + 0.5);
-    let wave3 = ((world_pos.z * 3.0 + time * 2.5).sin() * 0.5 + 0.5);
+    let wave1 = (world_pos.x * 3.0 + time * 2.0).sin() * 0.5 + 0.5;
+    let wave2 = (world_pos.y * 3.0 + time * 1.5).cos() * 0.5 + 0.5;
+    let wave3 = (world_pos.z * 3.0 + time * 2.5).sin() * 0.5 + 0.5;
 
     let wave_color = Vector3::new(wave1, wave2, wave3);
 
@@ -170,7 +170,7 @@ fn shader_expanding_rings(fragment: &Fragment, time: f32) -> Vector3 {
     let distance = (world_pos.x * world_pos.x + world_pos.y * world_pos.y + world_pos.z * world_pos.z).sqrt();
 
     // Animated rings expanding outward
-    let ring = ((distance * 2.0 - time * 2.0).sin() * 0.5 + 0.5);
+    let ring = (distance * 2.0 - time * 2.0).sin() * 0.5 + 0.5;
 
     let ring_color = Vector3::new(ring, 1.0 - ring, ring * 0.5);
 
