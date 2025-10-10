@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
 use raylib::math::Vector3;
