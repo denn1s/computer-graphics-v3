@@ -9,9 +9,11 @@ mod shaders;
 mod obj;
 mod matrix;
 mod camera;
+mod light;
 
 use crate::matrix::{create_model_matrix, create_projection_matrix, create_viewport_matrix};
 use crate::camera::Camera;
+use crate::light::Light;
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use triangle::triangle;
@@ -29,7 +31,7 @@ pub struct Uniforms {
     pub viewport_matrix: Matrix,
 }
 
-fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
+fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], light: &Light) {
     // Vertex Shader Stage
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
@@ -58,7 +60,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     // Rasterization Stage
     let mut fragments = Vec::new();
     for tri in &triangles {
-        fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
+        fragments.extend(triangle(&tri[0], &tri[1], &tri[2], light));
     }
 
     // Fragment Processing Stage
@@ -105,6 +107,9 @@ fn main() {
     let rotation_speed = 0.02; // Radians per frame
     let scale = 1.0f32;
 
+    // Light setup
+    let light = Light::new(Vector3::new(5.0, 5.0, 5.0));
+
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
@@ -130,7 +135,7 @@ fn main() {
             viewport_matrix,
         };
 
-        render(&mut framebuffer, &uniforms, &vertex_array);
+        render(&mut framebuffer, &uniforms, &vertex_array, &light);
 
         // Call the encapsulated swap_buffers function
         framebuffer.swap_buffers(&mut window, &thread);
