@@ -59,7 +59,24 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     tex_coords: vertex.tex_coords,
     color: vertex.color,
     transformed_position,
-    transformed_normal: vertex.normal, // Note: Correct normal transformation is more complex
+    transformed_normal: {
+        // Convert normal to homogeneous coordinates (w=0 for direction vectors)
+        let normal_vec4 = Vector4::new(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0);
+
+        // Transform the normal by the model matrix.
+        // For non-uniform scaling, the inverse transpose of the model matrix should be used.
+        // For uniform scaling (as in this project), transforming by the model matrix is sufficient.
+        let transformed_normal_vec4 = multiply_matrix_vector4(&uniforms.model_matrix, &normal_vec4);
+
+        // Convert back to Vector3 and normalize
+        let mut transformed_normal = Vector3::new(
+            transformed_normal_vec4.x,
+            transformed_normal_vec4.y,
+            transformed_normal_vec4.z,
+        );
+        transformed_normal.normalize();
+        transformed_normal
+    },
   }
 }
 

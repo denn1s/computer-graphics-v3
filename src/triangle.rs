@@ -69,9 +69,9 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
 
                 // Interpolate normals using barycentric coordinates
                 let interpolated_normal = Vector3::new(
-                    w1 * v1.normal.x + w2 * v2.normal.x + w3 * v3.normal.x,
-                    w1 * v1.normal.y + w2 * v2.normal.y + w3 * v3.normal.y,
-                    w1 * v1.normal.z + w2 * v2.normal.z + w3 * v3.normal.z,
+                    w1 * v1.transformed_normal.x + w2 * v2.transformed_normal.x + w3 * v3.transformed_normal.x,
+                    w1 * v1.transformed_normal.y + w2 * v2.transformed_normal.y + w3 * v3.transformed_normal.y,
+                    w1 * v1.transformed_normal.z + w2 * v2.transformed_normal.z + w3 * v3.transformed_normal.z,
                 );
 
                 // Normalize the interpolated normal
@@ -88,7 +88,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fra
                 // Calculate position in world space for this fragment
                 let world_pos = Vector3::new(
                     w1 * v1.position.x + w2 * v2.position.x + w3 * v3.position.x,
-                    w1 * v1.position.y + w2 * v2.position.y + w3 * v3.position.z,
+                    w1 * v1.position.y + w2 * v2.position.y + w3 * v3.position.y,
                     w1 * v1.position.z + w2 * v2.position.z + w3 * v3.position.z,
                 );
 
