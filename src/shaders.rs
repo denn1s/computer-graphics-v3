@@ -2,15 +2,7 @@ use raylib::prelude::*;
 use crate::vertex::Vertex;
 use crate::Uniforms;
 
-// This function manually multiplies a 4x4 matrix with a 4D vector (in homogeneous coordinates)
-fn multiply_matrix_vector4(matrix: &Matrix, vector: &Vector4) -> Vector4 {
-    Vector4::new(
-        matrix.m0 * vector.x + matrix.m4 * vector.y + matrix.m8 * vector.z + matrix.m12 * vector.w,
-        matrix.m1 * vector.x + matrix.m5 * vector.y + matrix.m9 * vector.z + matrix.m13 * vector.w,
-        matrix.m2 * vector.x + matrix.m6 * vector.y + matrix.m10 * vector.z + matrix.m14 * vector.w,
-        matrix.m3 * vector.x + matrix.m7 * vector.y + matrix.m11 * vector.z + matrix.m15 * vector.w,
-    )
-}
+use crate::matrix::multiply_matrix_vector4;
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
   // Convert vertex position to homogeneous coordinates (Vec4) by adding a w-component of 1.0
@@ -58,23 +50,25 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     tex_coords: vertex.tex_coords,
     color: vertex.color,
     transformed_position,
-    transformed_normal: {
-        // Convert normal to homogeneous coordinates (w=0 for direction vectors)
-        let normal_vec4 = Vector4::new(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0);
-
-        // Transform the normal by the model matrix.
-        // For non-uniform scaling, the inverse transpose of the model matrix should be used.
-        // For uniform scaling (as in this project), transforming by the model matrix is sufficient.
-        let transformed_normal_vec4 = multiply_matrix_vector4(&uniforms.model_matrix, &normal_vec4);
-
-        // Convert back to Vector3 and normalize
-        let mut transformed_normal = Vector3::new(
-            transformed_normal_vec4.x,
-            transformed_normal_vec4.y,
-            transformed_normal_vec4.z,
-        );
-        transformed_normal.normalize();
-        transformed_normal
-    },
+    transformed_normal: transform_normal(&vertex.normal, &uniforms.model_matrix),
   }
+}
+
+fn transform_normal(normal: &Vector3, model_matrix: &Matrix) -> Vector3 {
+    // Convert normal to homogeneous coordinates (w=0 for direction vectors)
+    let normal_vec4 = Vector4::new(normal.x, normal.y, normal.z, 0.0);
+
+    // Transform the normal by the model matrix.
+    // For non-uniform scaling, the inverse transpose of the model matrix should be used.
+    // For uniform scaling (as in this project), transforming by the model matrix is sufficient.
+    let transformed_normal_vec4 = multiply_matrix_vector4(model_matrix, &normal_vec4);
+
+    // Convert back to Vector3 and normalize
+    let mut transformed_normal = Vector3::new(
+        transformed_normal_vec4.x,
+        transformed_normal_vec4.y,
+        transformed_normal_vec4.z,
+    );
+    transformed_normal.normalize();
+    transformed_normal
 }
