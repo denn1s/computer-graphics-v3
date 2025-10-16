@@ -111,7 +111,7 @@ fn main() {
     // Light setup
     let light = Light::new(Vector3::new(5.0, 5.0, 5.0));
 
-    let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
+    let obj = Obj::load("assets/models/cube.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
     while !window.window_should_close() {
