@@ -13,22 +13,36 @@ This is a 3D software renderer written in Rust that implements the complete grap
 - Prefer explicit, readable code over terse or overly abstracted solutions
 - Document mathematical concepts and transformations clearly
 
+### Compiler Warnings
+
+This codebase often contains `#![allow(dead_code)]` attributes and may have unused code, variables, or functions. This is intentional for educational purposes:
+- Code may be present to demonstrate concepts even if not currently used
+- Students may need to reference or uncomment code for different lessons
+- Example implementations may be kept alongside working code for comparison
+
+**When working on this codebase:**
+- DO NOT remove unused code without understanding its educational purpose
+- It's acceptable to add `#![allow(dead_code)]`, `#[allow(unused_variables)]`, or similar attributes to suppress warnings
+- Focus on correctness and readability over eliminating all warnings
+- If code truly seems obsolete, ask before removing it - it may be needed for a lesson
+
 ## Build and Run Commands
 
 ```bash
 # Build and run (development with optimizations)
 cargo run
 
-# Build and run release version
+# Build and run using the build script (release mode)
 ./run.sh
-# or
-cargo build --release && ./target/release/computer-graphics-v3
 
-# Build only
+# Build only (development)
 cargo build
+
+# Build only (release)
+cargo build --release
 ```
 
-Note: The dev profile has `opt-level = 3` and `debug = false` for performance during development.
+**Note:** The dev profile has `opt-level = 3` and `debug = false` for performance during development. Software rendering is computationally intensive, so these optimizations are necessary even in debug builds.
 
 ## Branch Organization
 
