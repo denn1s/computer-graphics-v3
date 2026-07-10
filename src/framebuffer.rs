@@ -42,6 +42,7 @@ impl Framebuffer {
         self.color_buffer.export_image(file_path);
     }
 
+    #[allow(dead_code)] // kept for reference: the demo now blits + scales in main.rs
     pub fn swap_buffers(
         &self,
         window: &mut RaylibHandle,
