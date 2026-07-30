@@ -34,8 +34,8 @@ pub fn cast_ray(
     let j = y / block_size;
 
     if maze[j][i] != ' ' {
-      let hitx = x - i*block_size;
-      let hity = y - j*block_size;
+      let hitx = x % block_size;
+      let hity = y % block_size;
       let mut maxhit = hity;
 
       if 1 < hitx && hitx < block_size - 1 {
