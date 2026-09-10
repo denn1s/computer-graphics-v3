@@ -3,54 +3,41 @@ use std::f32::consts::PI;
 
 mod framebuffer;
 mod ray_intersect;
-mod sphere;
+mod cube;
 mod camera;
 mod light;
 mod material;
-mod textures;
 mod procedural;
 
 use framebuffer::Framebuffer;
 use ray_intersect::{Intersect, RayIntersect};
-use sphere::Sphere;
+use cube::Cube;
 use camera::Camera;
 use light::Light;
-use material::{Material, vector3_to_color};
-use textures::TextureManager;
 
 const ORIGIN_BIAS: f32 = 1e-4;
+// 24x24 surface cubes = 576 objects, brute-forced. Bump to 32/48/64 to
+// demo why acceleration structures matter (lesson hook).
+const TERRAIN_SIZE: i32 = 16;
 
 fn procedural_sky(dir: Vector3) -> Vector3 {
     let d = dir.normalized();
-    let t = (d.y + 1.0) * 0.5; // map y [-1,1] → [0,1]
+    let t = (d.y + 1.0) * 0.5;
 
-    let green = Vector3::new(0.1, 0.6, 0.2); // grass green
-    let white = Vector3::new(1.0, 1.0, 1.0); // horizon haze
-    let blue = Vector3::new(0.3, 0.5, 1.0);  // sky blue
+    let green = Vector3::new(0.1, 0.6, 0.2);
+    let white = Vector3::new(1.0, 1.0, 1.0);
+    let blue = Vector3::new(0.3, 0.5, 1.0);
 
     if t < 0.54 {
-        // Bottom → fade green to white
         let k = t / 0.55;
         green * (1.0 - k) + white * k
     } else if t < 0.55 {
-        // Around horizon → mostly white
         white
     } else if t < 0.8 {
-        // Fade white to blue
-        let k = (t - 0.55) / (0.25);
+        let k = (t - 0.55) / 0.25;
         white * (1.0 - k) + blue * k
     } else {
-        // Upper sky → solid blue
         blue
-    }
-}
-
-fn offset_origin(intersect: &Intersect, direction: &Vector3) -> Vector3 {
-    let offset = intersect.normal * ORIGIN_BIAS;
-    if direction.dot(intersect.normal) < 0.0 {
-        intersect.point - offset
-    } else {
-        intersect.point + offset
     }
 }
 
@@ -58,282 +45,253 @@ fn reflect(incident: &Vector3, normal: &Vector3) -> Vector3 {
     *incident - *normal * 2.0 * incident.dot(*normal)
 }
 
-fn refract(incident: &Vector3, normal: &Vector3, refractive_index: f32) -> Option<Vector3> {
-    let mut cosi = incident.dot(*normal).max(-1.0).min(1.0);
-    let mut etai = 1.0;
-    let mut etat = refractive_index;
-    let mut n = *normal;
-
-    if cosi > 0.0 {
-        std::mem::swap(&mut etai, &mut etat);
-        n = -n;
-    } else {
-        cosi = -cosi;
-    }
-
-    let eta = etai / etat;
-    let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
-
-    if k < 0.0 {
-        None
-    } else {
-        Some(*incident * eta + n * (eta * cosi - k.sqrt()))
-    }
-}
-
-fn cast_shadow(
-    intersect: &Intersect,
-    light: &Light,
-    objects: &[Sphere],
-) -> f32 {
+fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Cube]) -> bool {
     let light_dir = (light.position - intersect.point).normalized();
     let light_distance = (light.position - intersect.point).length();
-
-    let shadow_ray_origin = offset_origin(intersect, &light_dir);
+    let origin = intersect.point + intersect.normal * ORIGIN_BIAS;
+    let inv = Vector3::new(
+        1.0 / light_dir.x,
+        1.0 / light_dir.y,
+        1.0 / light_dir.z,
+    );
 
     for object in objects {
-        let shadow_intersect = object.ray_intersect(&shadow_ray_origin, &light_dir);
-        if shadow_intersect.is_intersecting && shadow_intersect.distance < light_distance {
-            return 1.0;
+        let hit = object.ray_intersect(&origin, &light_dir, &inv);
+        if hit.is_intersecting && hit.distance < light_distance {
+            return true;
         }
     }
-
-    0.0
+    false
 }
 
+// No reflection / refraction: Minecraft faces are matte.
+// One primary ray + one shadow ray per pixel.
 pub fn cast_ray(
     ray_origin: &Vector3,
     ray_direction: &Vector3,
-    objects: &[Sphere],
+    inv_dir: &Vector3,
+    objects: &[Cube],
     light: &Light,
-    texture_manager: &TextureManager,
-    depth: u32,
+    light_color: &Vector3,
 ) -> Vector3 {
-    if depth > 3 {
-        return procedural_sky(*ray_direction);
-        // return SKYBOX_COLOR;
-    }
-
-    let mut intersect = Intersect::empty();
+    let mut best = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
     for object in objects {
-        let i = object.ray_intersect(ray_origin, ray_direction);
+        let i = object.ray_intersect(ray_origin, ray_direction, inv_dir);
         if i.is_intersecting && i.distance < zbuffer {
             zbuffer = i.distance;
-            intersect = i;
+            best = i;
         }
     }
 
-    if !intersect.is_intersecting {
+    if !best.is_intersecting {
         return procedural_sky(*ray_direction);
-        // return SKYBOX_COLOR;
     }
 
-    let light_dir = (light.position - intersect.point).normalized();
-    let view_dir = (*ray_origin - intersect.point).normalized();
+    let light_dir = (light.position - best.point).normalized();
+    let view_dir = (*ray_origin - best.point).normalized();
+    let normal = best.normal;
 
-    let mut normal = intersect.normal;
-    if let Some(normal_map_path) = &intersect.material.normal_map_id {
-        let texture = texture_manager.get_texture(normal_map_path).unwrap();
-        let width = texture.width() as u32;
-        let height = texture.height() as u32;
-        let tx = (intersect.u * width as f32) as u32;
-        let ty = (intersect.v * height as f32) as u32;
+    let in_shadow = cast_shadow(&best, light, objects);
+    let light_intensity = if in_shadow { 0.0 } else { light.intensity };
 
-        if let Some(tex_normal) = texture_manager.get_normal_from_map(normal_map_path, tx, ty) {
-            let tangent = Vector3::new(normal.y, -normal.x, 0.0).normalized();
-            let bitangent = normal.cross(tangent);
-            
-            let transformed_normal_x = tex_normal.x * tangent.x + tex_normal.y * bitangent.x + tex_normal.z * normal.x;
-            let transformed_normal_y = tex_normal.x * tangent.y + tex_normal.y * bitangent.y + tex_normal.z * normal.y;
-            let transformed_normal_z = tex_normal.x * tangent.z + tex_normal.y * bitangent.z + tex_normal.z * normal.z;
-
-            normal = Vector3::new(transformed_normal_x, transformed_normal_y, transformed_normal_z).normalized();
-        }
-    }
-
-    let reflect_dir = reflect(&-light_dir, &normal).normalized();
-
-    let shadow_intensity = cast_shadow(&intersect, light, objects);
-    let light_intensity = light.intensity * (1.0 - shadow_intensity);
-
-    let diffuse_color = if let Some(texture_path) = &intersect.material.texture_id {
-        let texture = texture_manager.get_texture(texture_path).unwrap();
-        let width = texture.width() as u32;
-        let height = texture.height() as u32;
-        let tx = (intersect.u * width as f32) as u32;
-        let ty = (intersect.v * height as f32) as u32;
-        let color = texture_manager.get_pixel_color(texture_path, tx, ty);
-        color
-    } else {
-        intersect.material.diffuse
-    };
-
+    // Flat material color, no textures.
+    let diffuse_color = best.material.diffuse;
     let diffuse_intensity = normal.dot(light_dir).max(0.0) * light_intensity;
     let diffuse = diffuse_color * diffuse_intensity;
+    // Small ambient so shadowed faces are readable, not pitch black.
+    let ambient = diffuse_color * 0.18;
 
-    let specular_intensity = view_dir.dot(reflect_dir).max(0.0).powf(intersect.material.specular) * light_intensity;
-    let light_color_v3 = Vector3::new(light.color.r as f32 / 255.0, light.color.g as f32 / 255.0, light.color.b as f32 / 255.0);
-    let specular = light_color_v3 * specular_intensity;
+    let reflect_dir = reflect(&-light_dir, &normal).normalized();
+    let specular_intensity = view_dir
+        .dot(reflect_dir)
+        .max(0.0)
+        .powf(best.material.specular)
+        * light_intensity;
+    let specular = *light_color * specular_intensity * 0.3;
 
-    let albedo = intersect.material.albedo;
-    let phong_color = diffuse * albedo[0] + specular * albedo[1] + intersect.material.emissive;
+    ambient + diffuse + specular
+}
 
-    let reflectivity = intersect.material.albedo[2];
-    let reflect_color = if reflectivity > 0.0 {
-        let reflect_dir = reflect(ray_direction, &normal).normalized();
-        let reflect_origin = offset_origin(&intersect, &reflect_dir);
-        cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
-    } else {
-        Vector3::zero()
-    };
-
-    let transparency = intersect.material.albedo[3];
-    let refract_color = if transparency > 0.0 {
-        if let Some(refract_dir) = refract(ray_direction, &normal, intersect.material.refractive_index) {
-            let refract_origin = offset_origin(&intersect, &refract_dir);
-            cast_ray(&refract_origin, &refract_dir, objects, light, texture_manager, depth + 1)
-        } else {
-            let reflect_dir = reflect(ray_direction, &normal).normalized();
-            let reflect_origin = offset_origin(&intersect, &reflect_dir);
-            cast_ray(&reflect_origin, &reflect_dir, objects, light, texture_manager, depth + 1)
-        }
-    } else {
-        Vector3::zero()
-    };
-
-    phong_color * (1.0 - reflectivity - transparency) + reflect_color * reflectivity + refract_color * transparency
+// Cheap per-pixel hash for the 50% preview dither. Frame-dependent so the
+// grain shimmers while orbiting instead of sitting on a fixed checkerboard.
+fn preview_hash(x: u32, y: u32, width: u32, frame: u32) -> u32 {
+    let mut h = y
+        .wrapping_mul(width)
+        .wrapping_add(x)
+        .wrapping_add(frame.wrapping_mul(0x9e3779b1));
+    h ^= h >> 16;
+    h = h.wrapping_mul(0x7feb352d);
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x846ca68b);
+    h ^= h >> 16;
+    h
 }
 
 pub fn render(
-    framebuffer: &mut Framebuffer,
-    objects: &[Sphere],
+    pixels: &mut [u8],
+    width: u32,
+    height: u32,
+    objects: &[Cube],
     camera: &Camera,
     light: &Light,
-    texture_manager: &TextureManager,
+    light_color: &Vector3,
+    // None = full quality. Some(frame) = shade a random ~50% of pixels,
+    // leave the rest black: grainy but ~2x faster while the camera moves.
+    preview: Option<u32>,
 ) {
-    let width = framebuffer.width as f32;
-    let height = framebuffer.height as f32;
-    let aspect_ratio = width / height;
-    let fov = PI / 3.0;
-    let perspective_scale = (fov * 0.5).tan();
+    let w = width as f32;
+    let h = height as f32;
+    let aspect_ratio = w / h;
+    let perspective_scale = (PI / 3.0 * 0.5).tan();
 
-    for y in 0..framebuffer.height {
-        for x in 0..framebuffer.width {
-            let screen_x = (2.0 * x as f32) / width - 1.0;
-            let screen_y = -(2.0 * y as f32) / height + 1.0;
+    // Snapshot camera basis so threads only read Copy values.
+    let eye = camera.eye;
+    let right = camera.right;
+    let up = camera.up;
+    let forward = camera.forward;
 
-            let screen_x = screen_x * aspect_ratio * perspective_scale;
-            let screen_y = screen_y * perspective_scale;
+    let n_threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(height as usize)
+        .max(1);
+    let rows_per_thread = (height as usize + n_threads - 1) / n_threads;
+    let stride = width as usize * 4;
 
-            let ray_direction = Vector3::new(screen_x, screen_y, -1.0).normalized();
-            
-            let rotated_direction = camera.basis_change(&ray_direction);
+    std::thread::scope(|s| {
+        for (band_idx, band) in pixels.chunks_mut(rows_per_thread * stride).enumerate() {
+            let y_start = band_idx * rows_per_thread;
+            // References captured by the scope; no Send bounds on raw pointers needed.
+            let objects = objects;
+            let light = light;
+            let light_color = light_color;
+            s.spawn(move || {
+                for (row, line) in band.chunks_mut(stride).enumerate() {
+                    let y = y_start + row;
+                    if y >= height as usize {
+                        break;
+                    }
+                    let sy = (-(2.0 * y as f32) / h + 1.0) * perspective_scale;
+                    for x in 0..width as usize {
+                        let o = x * 4;
+                        if let Some(frame) = preview {
+                            if preview_hash(x as u32, y as u32, width, frame) & 1 == 0 {
+                                line[o] = 0;
+                                line[o + 1] = 0;
+                                line[o + 2] = 0;
+                                line[o + 3] = 255;
+                                continue;
+                            }
+                        }
 
-            let pixel_color_v3 = cast_ray(&camera.eye, &rotated_direction, objects, light, texture_manager, 0);
-            let pixel_color = vector3_to_color(pixel_color_v3);
+                        let sx =
+                            ((2.0 * x as f32) / w - 1.0) * aspect_ratio * perspective_scale;
 
-            framebuffer.set_current_color(pixel_color);
-            framebuffer.set_pixel(x, y);
+                        // Camera space (sx, sy, -1) -> world. basis_change inlined:
+                        // world = right*sx + up*sy - forward*(-1)
+                        let mut dir = Vector3::new(
+                            right.x * sx + up.x * sy + forward.x,
+                            right.y * sx + up.y * sy + forward.y,
+                            right.z * sx + up.z * sy + forward.z,
+                        )
+                        .normalized();
+                        // Keep sky gradient stable if basis drifts from perfect orthonormal.
+                        dir = dir.normalized();
+                        let inv = Vector3::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z);
+
+                        let c = cast_ray(&eye, &dir, &inv, objects, light, light_color);
+
+                        line[o] = (c.x.clamp(0.0, 1.0) * 255.0) as u8;
+                        line[o + 1] = (c.y.clamp(0.0, 1.0) * 255.0) as u8;
+                        line[o + 2] = (c.z.clamp(0.0, 1.0) * 255.0) as u8;
+                        line[o + 3] = 255;
+                    }
+                }
+            });
         }
-    }
+    });
 }
 
 fn main() {
-    let window_width = 1300;
-    let window_height = 900;
- 
+    let window_width = 800;
+    let window_height = 600;
+
     let (mut window, thread) = raylib::init()
         .size(window_width, window_height)
-        .title("Raytracer Example")
+        .title("Minecraft Raytracer")
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
-    let mut texture_manager = TextureManager::new();
-    texture_manager.load_texture(&mut window, &thread, "assets/ball.png");
-    texture_manager.load_texture(&mut window, &thread, "assets/ball_normal.png");
-    texture_manager.load_texture(&mut window, &thread, "assets/bricks.png");
-    texture_manager.load_texture(&mut window, &thread, "assets/bricks_normal.png");
-    let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
+    let mut framebuffer =
+        Framebuffer::new(&mut window, &thread, window_width as u32, window_height as u32);
 
-    let rubber = Material::new(
-        Vector3::new(0.3, 0.1, 0.1),
-        10.0,
-        [0.9, 0.1, 0.0, 0.0],
-        0.0,
-        Some("assets/ball.png".to_string()),
-        Some("assets/ball_normal.png".to_string()),
-        Vector3::zero(),
-    );
-
-    let bricks = Material::new(
-        Vector3::new(0.8, 0.2, 0.1),
-        20.0,
-        [0.8, 0.2, 0.0, 0.0],
-        0.0,
-        Some("assets/bricks.png".to_string()),
-        Some("assets/bricks_normal.png".to_string()),
-        Vector3::zero(),
-    );
-
-    let ivory = Material::new(
-        Vector3::new(0.4, 0.4, 0.3),
-        50.0,
-        [0.6, 0.3, 0.1, 0.0],
-        0.0,
-        None,
-        None,
-        Vector3::zero(),
-    );
-
-    let glass = Material::new(
-        Vector3::new(0.6, 0.7, 0.8),
-        125.0,
-        [0.0, 0.5, 0.1, 0.8],
-        1.5,
-        None,
-        None,
-        Vector3::zero(),
-    );
-
-    let light_material = Material::new(
-        Vector3::new(1.0, 1.0, 1.0),
-        10.0,
-        [1.0, 0.0, 0.0, 0.0],
-        0.0,
-        None,
-        None,
-        Vector3::new(1.0, 1.0, 1.0) * 2.0,
-    );
-
-    let mut objects = vec![
-        Sphere { center: Vector3::new(0.0, 0.0, 0.0), radius: 1.0, material: rubber.clone() },
-        Sphere { center: Vector3::new(1.5, 0.0, -1.0), radius: 1.0, material: bricks.clone() },
-        Sphere { center: Vector3::new(-1.0, -1.0, 1.5), radius: 0.5, material: ivory.clone() },
-        Sphere { center: Vector3::new(-0.3, 0.3, 1.5), radius: 0.3, material: glass.clone() },
-        Sphere { center: Vector3::new(0.0, 2.0, 0.0), radius: 0.5, material: light_material.clone() },
-    ];
-
-    let materials = [bricks, rubber, ivory];
-    let terrain = procedural::generate_terrain(10, 10, &materials);
-    objects.extend(terrain);
+    let palette = procedural::TerrainPalette::minecraft();
+    // Random seed on load so every run shows new terrain; press R for more.
+    let mut seed: u32 = rand::random();
+    let mut objects =
+        procedural::generate_terrain(TERRAIN_SIZE, TERRAIN_SIZE, 6, 0.08, seed, &palette);
 
     let mut camera = Camera::new(
-        Vector3::new(0.0, 0.0, 5.0),
-        Vector3::new(0.0, 0.0, 0.0),
+        Vector3::new(18.0, 15.0, 22.0),
+        Vector3::new(0.0, 2.0, 0.0),
         Vector3::new(0.0, 1.0, 0.0),
     );
     let rotation_speed = PI / 100.0;
-    let zoom_speed = 0.1;
+    let zoom_speed = 0.5;
 
     let light = Light::new(
-        Vector3::new(1.0, -1.0, 5.0),
+        Vector3::new(10.0, 15.0, 8.0),
         Color::new(255, 255, 255, 255),
-        1.5,
+        1.1,
     );
+    let light_color = Vector3::new(1.0, 1.0, 1.0);
+
+    let fb_w = framebuffer.width;
+    let fb_h = framebuffer.height;
+    render(
+        framebuffer.pixels_mut(),
+        fb_w,
+        fb_h,
+        &objects,
+        &camera,
+        &light,
+        &light_color,
+        None,
+    );
+    // Consume the initial "changed" flag so we don't render twice.
+    camera.is_changed();
+    let mut hud = format!(
+        "Seed: {} | Cubes: {} | [R] regenerate",
+        seed,
+        objects.len()
+    );
+    let mut frame: u32 = 0;
 
     while !window.window_should_close() {
+        if window.is_key_pressed(KeyboardKey::KEY_R) || window.is_key_pressed(KeyboardKey::KEY_SPACE) {
+            seed = rand::random();
+            objects =
+                procedural::generate_terrain(TERRAIN_SIZE, TERRAIN_SIZE, 6, 0.08, seed, &palette);
+            hud = format!(
+                "Seed: {} | Cubes: {} | [R] regenerate",
+                seed,
+                objects.len()
+            );
+            let fb_w = framebuffer.width;
+            let fb_h = framebuffer.height;
+            render(
+                framebuffer.pixels_mut(),
+                fb_w,
+                fb_h,
+                &objects,
+                &camera,
+                &light,
+                &light_color,
+                None,
+            );
+        }
         if window.is_key_down(KeyboardKey::KEY_LEFT) {
             camera.orbit(rotation_speed, 0.0);
         }
@@ -353,10 +311,104 @@ fn main() {
             camera.zoom(-zoom_speed);
         }
 
-        if camera.is_changed() {
-            render(&mut framebuffer, &objects, &camera, &light, &texture_manager);
+        // While orbiting/zooming: grainy 50% preview (~2x faster).
+        // On release: one full-quality pass.
+        let moving = window.is_key_down(KeyboardKey::KEY_LEFT)
+            || window.is_key_down(KeyboardKey::KEY_RIGHT)
+            || window.is_key_down(KeyboardKey::KEY_UP)
+            || window.is_key_down(KeyboardKey::KEY_DOWN)
+            || window.is_key_down(KeyboardKey::KEY_W)
+            || window.is_key_down(KeyboardKey::KEY_S);
+        if moving {
+            frame = frame.wrapping_add(1);
+            let fb_w = framebuffer.width;
+            let fb_h = framebuffer.height;
+            render(
+                framebuffer.pixels_mut(),
+                fb_w,
+                fb_h,
+                &objects,
+                &camera,
+                &light,
+                &light_color,
+                Some(frame),
+            );
+            // NOTE: do NOT drain camera.is_changed() here. The flag stays set
+            // so the first still frame below runs one full-quality pass.
+        } else if camera.is_changed() {
+            let fb_w = framebuffer.width;
+            let fb_h = framebuffer.height;
+            render(
+                framebuffer.pixels_mut(),
+                fb_w,
+                fb_h,
+                &objects,
+                &camera,
+                &light,
+                &light_color,
+                None,
+            );
         }
-        
-        framebuffer.swap_buffers(&mut window, &thread);
+
+        framebuffer.present(&mut window, &thread, &hud, moving);
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn headless_terrain_renders_cubes() {
+        // No window needed: exercises slab test, OpenSimplex terrain, lighting.
+        let palette = procedural::TerrainPalette::minecraft();
+        let objects = procedural::generate_terrain(16, 16, 6, 0.08, 1337, &palette);
+        assert_eq!(objects.len(), 256);
+
+        // A ray straight down over the terrain center must hit a cube.
+        let origin = Vector3::new(0.0, 20.0, 0.0);
+        let dir = Vector3::new(0.0, -1.0, 0.0).normalized();
+        let inv = Vector3::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z);
+        let light = Light::new(
+            Vector3::new(10.0, 15.0, 8.0),
+            Color::new(255, 255, 255, 255),
+            1.1,
+        );
+        let light_color = Vector3::new(1.0, 1.0, 1.0);
+        let c = cast_ray(&origin, &dir, &inv, &objects, &light, &light_color);
+        assert!(c.x > 0.0 || c.y > 0.0 || c.z > 0.0);
+
+        // Full small-frame render: all alpha bytes must stay opaque,
+        // and a healthy fraction of pixels must be terrain (not sky).
+        let w = 160u32;
+        let h = 120u32;
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+        let camera = Camera::new(
+            Vector3::new(18.0, 15.0, 22.0),
+            Vector3::new(0.0, 2.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+        );
+        render(&mut pixels, w, h, &objects, &camera, &light, &light_color, None);
+        assert!(pixels.chunks_exact(4).all(|px| px[3] == 255));
+        let lit = pixels
+            .chunks_exact(4)
+            .filter(|px| px[0] > 10 || px[1] > 10 || px[2] > 10)
+            .count();
+        assert!(lit > pixels.len() / 4 / 10, "frame looks empty");
+
+        // Preview mode shades roughly half the pixels; the rest stay black.
+        // Shaded pixels are never pure black (ambient lift), so black == skipped.
+        let mut pv = vec![0u8; (w * h * 4) as usize];
+        render(&mut pv, w, h, &objects, &camera, &light, &light_color, Some(7));
+        let total = (w * h) as usize;
+        let skipped = pv
+            .chunks_exact(4)
+            .filter(|px| px[0] == 0 && px[1] == 0 && px[2] == 0)
+            .count();
+        assert!(
+            skipped > total * 35 / 100 && skipped < total * 65 / 100,
+            "preview should skip ~50%, skipped {skipped}/{total}"
+        );
     }
 }
