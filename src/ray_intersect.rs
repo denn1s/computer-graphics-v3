@@ -42,4 +42,17 @@ pub trait RayIntersect {
         ray_direction: &Vector3,
         inv_dir: &Vector3,
     ) -> Intersect;
+
+    // Shadow rays only need to know whether a hit exists before the light.
+    // Avoid constructing a full Intersect (point, normal, and material).
+    fn intersects_before(
+        &self,
+        ray_origin: &Vector3,
+        ray_direction: &Vector3,
+        inv_dir: &Vector3,
+        max_distance: f32,
+    ) -> bool {
+        let hit = self.ray_intersect(ray_origin, ray_direction, inv_dir);
+        hit.is_intersecting && hit.distance < max_distance
+    }
 }

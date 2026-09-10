@@ -21,8 +21,9 @@ const ORIGIN_BIAS: f32 = 1e-4;
 const TERRAIN_SIZE: i32 = 16;
 
 fn procedural_sky(dir: Vector3) -> Vector3 {
-    let d = dir.normalized();
-    let t = (d.y + 1.0) * 0.5;
+    // Render rays are normalized before cast_ray, so normalizing again here
+    // would add another square root to every sky pixel.
+    let t = (dir.y + 1.0) * 0.5;
 
     let green = Vector3::new(0.1, 0.6, 0.2);
     let white = Vector3::new(1.0, 1.0, 1.0);
@@ -45,9 +46,12 @@ fn reflect(incident: &Vector3, normal: &Vector3) -> Vector3 {
     *incident - *normal * 2.0 * incident.dot(*normal)
 }
 
-fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Cube]) -> bool {
-    let light_dir = (light.position - intersect.point).normalized();
-    let light_distance = (light.position - intersect.point).length();
+fn cast_shadow(
+    intersect: &Intersect,
+    light_dir: &Vector3,
+    light_distance: f32,
+    objects: &[Cube],
+) -> bool {
     let origin = intersect.point + intersect.normal * ORIGIN_BIAS;
     let inv = Vector3::new(
         1.0 / light_dir.x,
@@ -56,8 +60,7 @@ fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Cube]) -> bool {
     );
 
     for object in objects {
-        let hit = object.ray_intersect(&origin, &light_dir, &inv);
-        if hit.is_intersecting && hit.distance < light_distance {
+        if object.intersects_before(&origin, light_dir, &inv, light_distance) {
             return true;
         }
     }
@@ -89,11 +92,13 @@ pub fn cast_ray(
         return procedural_sky(*ray_direction);
     }
 
-    let light_dir = (light.position - best.point).normalized();
+    let to_light = light.position - best.point;
+    let light_distance = to_light.length();
+    let light_dir = to_light / light_distance;
     let view_dir = (*ray_origin - best.point).normalized();
     let normal = best.normal;
 
-    let in_shadow = cast_shadow(&best, light, objects);
+    let in_shadow = cast_shadow(&best, &light_dir, light_distance, objects);
     let light_intensity = if in_shadow { 0.0 } else { light.intensity };
 
     // Flat material color, no textures.
@@ -191,14 +196,12 @@ pub fn render(
 
                         // Camera space (sx, sy, -1) -> world. basis_change inlined:
                         // world = right*sx + up*sy - forward*(-1)
-                        let mut dir = Vector3::new(
+                        let dir = Vector3::new(
                             right.x * sx + up.x * sy + forward.x,
                             right.y * sx + up.y * sy + forward.y,
                             right.z * sx + up.z * sy + forward.z,
                         )
                         .normalized();
-                        // Keep sky gradient stable if basis drifts from perfect orthonormal.
-                        dir = dir.normalized();
                         let inv = Vector3::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z);
 
                         let c = cast_ray(&eye, &dir, &inv, objects, light, light_color);
@@ -263,7 +266,7 @@ fn main() {
     // Consume the initial "changed" flag so we don't render twice.
     camera.is_changed();
     let mut hud = format!(
-        "Seed: {} | Cubes: {} | [R] regenerate",
+        "Seed: {} | Cubes: {}",
         seed,
         objects.len()
     );
@@ -350,7 +353,7 @@ fn main() {
             );
         }
 
-        framebuffer.present(&mut window, &thread, &hud, moving);
+        framebuffer.present(&mut window, &thread, &hud);
     }
 }
 
@@ -409,6 +412,40 @@ mod tests {
         assert!(
             skipped > total * 35 / 100 && skipped < total * 65 / 100,
             "preview should skip ~50%, skipped {skipped}/{total}"
+        );
+    }
+
+    #[test]
+    #[ignore = "manual performance benchmark"]
+    fn benchmark_headless_render() {
+        let palette = procedural::TerrainPalette::minecraft();
+        let objects = procedural::generate_terrain(16, 16, 6, 0.08, 1337, &palette);
+        let light = Light::new(
+            Vector3::new(10.0, 15.0, 8.0),
+            Color::new(255, 255, 255, 255),
+            1.1,
+        );
+        let light_color = Vector3::new(1.0, 1.0, 1.0);
+        let camera = Camera::new(
+            Vector3::new(18.0, 15.0, 22.0),
+            Vector3::new(0.0, 2.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+        );
+        let (w, h) = (320u32, 240u32);
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+
+        // Warm up worker creation and instruction/data caches.
+        render(&mut pixels, w, h, &objects, &camera, &light, &light_color, None);
+
+        let iterations = 100;
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            render(&mut pixels, w, h, &objects, &camera, &light, &light_color, None);
+        }
+        let elapsed = start.elapsed();
+        eprintln!(
+            "render benchmark: {:.3} ms/frame ({iterations} frames)",
+            elapsed.as_secs_f64() * 1000.0 / iterations as f64
         );
     }
 }

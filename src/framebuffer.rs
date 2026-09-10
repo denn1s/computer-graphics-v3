@@ -46,7 +46,6 @@ impl Framebuffer {
         window: &mut RaylibHandle,
         thread: &RaylibThread,
         hud: &str,
-        preview: bool,
     ) {
         let _ = self.texture.update_texture(&self.pixels);
         let mut d = window.begin_drawing(thread);
@@ -54,8 +53,5 @@ impl Framebuffer {
         d.draw_texture(&self.texture, 0, 0, Color::WHITE);
         d.draw_fps(10, 10);
         d.draw_text(hud, 10, 30, 20, Color::WHITE);
-        if preview {
-            d.draw_text("PREVIEW 50% - release to refine", 10, 52, 20, Color::YELLOW);
-        }
     }
 }

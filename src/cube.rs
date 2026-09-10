@@ -109,4 +109,42 @@ impl RayIntersect for Cube {
 
         Intersect::empty()
     }
+
+    #[inline(always)]
+    fn intersects_before(
+        &self,
+        ray_origin: &Vector3,
+        ray_direction: &Vector3,
+        inv_dir: &Vector3,
+        max_distance: f32,
+    ) -> bool {
+        let mut tmin = f32::NEG_INFINITY;
+        let mut tmax = max_distance;
+
+        macro_rules! test_slab {
+            ($axis:ident) => {
+                if ray_direction.$axis.abs() < 1e-8 {
+                    if ray_origin.$axis < self.min.$axis
+                        || ray_origin.$axis > self.max.$axis
+                    {
+                        return false;
+                    }
+                } else {
+                    let t1 = (self.min.$axis - ray_origin.$axis) * inv_dir.$axis;
+                    let t2 = (self.max.$axis - ray_origin.$axis) * inv_dir.$axis;
+                    tmin = tmin.max(t1.min(t2));
+                    tmax = tmax.min(t1.max(t2));
+                    if tmin > tmax {
+                        return false;
+                    }
+                }
+            };
+        }
+
+        test_slab!(x);
+        test_slab!(y);
+        test_slab!(z);
+
+        tmin > 1e-4 && tmin < max_distance
+    }
 }
