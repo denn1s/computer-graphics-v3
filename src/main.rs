@@ -117,8 +117,8 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
 }
 
 fn main() {
-    let window_width = 800;
-    let window_height = 600;
+    let window_width = 1200;
+    let window_height = 800;
 
     let (mut window, thread) = raylib::init()
         .size(window_width, window_height)
@@ -138,8 +138,17 @@ fn main() {
 
     let obj = Obj::load("assets/models/anya.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
+    let triangle_vertices = [
+        Vertex::new_with_color(Vector3::new(0.0, -3.2, 0.0), Vector3::new(1.0, 1.0, 1.0)),
+        Vertex::new_with_color(Vector3::new(-3.6, 1.6, 0.0), Vector3::new(1.0, 1.0, 1.0)),
+        Vertex::new_with_color(Vector3::new(3.6, 1.6, 0.0), Vector3::new(1.0, 1.0, 1.0)),
+    ];
+    let mut show_triangle = false;
 
     while !window.window_should_close() {
+        if window.is_key_pressed(KeyboardKey::KEY_ONE) {
+            show_triangle = !show_triangle;
+        }
         handle_input(&mut window, &mut translation, &mut rotation, &mut scale);
 
         framebuffer.clear();
@@ -147,7 +156,11 @@ fn main() {
         let model_matrix = create_model_matrix(translation, scale, rotation);
         let uniforms = Uniforms { model_matrix };
 
-        render(&mut framebuffer, &uniforms, &vertex_array);
+        if show_triangle {
+            render(&mut framebuffer, &uniforms, &triangle_vertices);
+        } else {
+            render(&mut framebuffer, &uniforms, &vertex_array);
+        }
 
         // Call the encapsulated swap_buffers function
         framebuffer.swap_buffers(&mut window, &thread);
@@ -170,10 +183,10 @@ fn handle_input(window: &mut RaylibHandle, translation: &mut Vector3, rotation: 
         translation.y += 10.0;
     }
     if window.is_key_down(KeyboardKey::KEY_S) {
-        *scale += 0.1;
+        *scale += 1.0;
     }
     if window.is_key_down(KeyboardKey::KEY_A) {
-        *scale -= 0.1;
+        *scale -= 1.0;
     }
     if window.is_key_down(KeyboardKey::KEY_Q) {
         rotation.x -= PI / 10.0;
