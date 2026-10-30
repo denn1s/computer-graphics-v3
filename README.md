@@ -1,196 +1,136 @@
-# Lesson 4: Drawing Your First Triangle
+# CPU Shader Workshop
+
+Teaching branch: `SR-20-ShaderWorkshop-v2`, based on `SR-17-NoiseShaders-v2`.
+
+Run commands from the repository root. The supplied Blender sphere is used unchanged (192 triangles). The Rust renderer computes geometry, rasterization, lighting, and material colors on the CPU; Raylib only presents the finished image and handles the window.
+
+## Run
+
+```sh
+cargo run --release
+```
+
+Start in the matching CPU sun demo:
+
+```sh
+cargo run --release -- --shader 10
+```
 
-In this lesson, we will be drawing triangles on the screen.
+Change `WINDOW_WIDTH` and `WINDOW_HEIGHT` near the top of `src/main.rs` to change the CPU window, framebuffer, projection, gallery exports, and UI together. The GPU demo has matching constants in `gpu_demo/main.cpp`. Bloom uses the actual framebuffer dimensions.
 
-## Key Definitions
+See [TEACHER_GUIDE.md](TEACHER_GUIDE.md) for the full classroom script, board drawings, exact live-code edits, and image-search suggestions.
 
-* **Triangle:** A polygon with three edges and three vertices, forming the simplest possible polygon.
-* **Vertex:** A point in 2D or 3D space, used to define the corners of a polygon.
-* **Primitive:** The basic shape used to construct more complex graphics. In computer graphics, triangles are the most commonly used primitive.
-* **Rasterization:** The process of converting vector graphics (like triangles) into pixels on the screen.
-* **Fragment:** A potential pixel in rasterized graphics, containing data needed to compute the final color and depth.
+## Files to show in class
 
-## Why Triangles?
+- `src/shaders.rs`: the live shader and the calls to prepared examples. Edit `live_shader`, restart, and select `0`.
+- `src/shader_examples/console_styles.rs`: flat, Gouraud, per-fragment lighting, and a simplified N64 combiner.
+- `src/shader_examples/planets.rs`: toon bands, animated stripes, continents, gas bands, and ice veins.
+- `src/shader_examples/stars.rs`: matching CPU/GLSL sine-wave sun and an OpenSimplex star.
+- `src/shader_examples/noise_helpers.rs`: noise sampling and four-octave fBm.
+- `src/shader_examples/passes.rs`: bright extraction, horizontal blur, vertical blur, and bloom composition.
 
-Triangles are the simplest polygon that can define a surface in both 2D and 3D space, making them highly efficient for computer graphics. Here are a few reasons why triangles are preferred:
+These files intentionally contain no explanatory comments. Renderer setup and controls are already implemented elsewhere.
 
-- **Simplicity:** With only three vertices, a triangle is the simplest shape that can define a flat surface, ensuring that any other polygon can be broken down into triangles.
-- **Stability:** Triangles are always flat (planar) in 3D space, which avoids issues like concavity or deformation that can occur with more complex polygons.
-- **Performance:** Modern GPUs are optimized for triangle processing, making rendering faster and more efficient.
-- **Versatility:** Any 3D shape can be approximated by a mesh of triangles, allowing for complex models and detailed surfaces.
+## Controls
 
-## Main Steps to Draw a Triangle
+| Key | Action |
+| --- | --- |
+| `0` | Live shader |
+| `1`, `2`, `3` | Flat, Gouraud, per-fragment lighting |
+| `4` | N64-style mask recoloring |
+| `5`, `6` | Toon, animated bands |
+| `7`, `8`, `9` | Rocky planet, gas giant, ice world |
+| `F1`, `F2` | Sine-wave sun, noise star |
+| Left / Right | Previous / next shader |
+| Space | Pause shader time and model rotation |
+| `R` | Toggle model rotation |
+| `N` | Toggle generated smooth normals / exported Blender normals |
+| `B` | Toggle bloom after scene rendering |
+| WASD | Orbit camera |
+| Up / Down | Zoom |
+| Home | Reset camera, model angle, and shader time |
+| Escape | Exit |
 
-### - Vertex Specification:
-        Define the vertices of the triangle in either 2D or 3D space.
+FPS, total milliseconds per frame, and CPU rendering milliseconds appear in the window title. Bloom starts disabled. Animation and rotation use elapsed time, not frame rate. `frame_count` continues advancing while animation is paused.
 
-### - Buffer Setup:
-        Create and configure a buffer to store vertex data and manage graphics memory.
+## Inputs available to shaders
 
-### - Drawing Command:
-        Issue a command to draw the triangle using the specified vertices.
+| Input | Meaning |
+| --- | --- |
+| `fragment.position` | Screen sample position in pixels; Y increases downward |
+| `fragment.object_position` | Original mesh position; patterns stay attached during rotation |
+| `fragment.world_position` | Position after the model transform |
+| `fragment.normal` | Normalized world-space interpolated normal |
+| `fragment.face_normal` | World-space triangle normal |
+| `fragment.uv` | Perspective-correct interpolated Blender UV coordinates |
+| `fragment.color` | Unlit white base color, independent of lighting |
+| `fragment.depth` | NDC depth, from -1 to 1 |
+| `fragment.intensity` | Lambert lighting calculated per fragment |
+| `fragment.flat_intensity` | One Lambert value calculated at the face center |
+| `fragment.gouraud_intensity` | Screen-space interpolation of vertex lighting |
+| `uniforms.time` | Animation time in seconds |
+| `uniforms.delta_time` | Animation step in seconds, zero when paused |
+| `uniforms.frame_count` | Number of previously rendered frames |
+| `uniforms.resolution` | Framebuffer width and height |
+| `uniforms.camera_position` | World-space camera position |
+| `uniforms.light_position` | World-space point-light position |
+| `uniforms.noise` | Reusable OpenSimplex generator with seed 42 |
+| `uniforms.mask` | Small grayscale texture prepared once for the combiner demonstration |
 
-### - Rendering Pipeline:
-        Transform and rasterize the triangle, converting vertex data to fragments on the screen.
+Transformation matrices and the selected shader index are also in `Uniforms`. Return an RGB `Vector3`; display conversion clamps its components to 0–1. A star can ignore lighting entirely. A planet can multiply its procedural color by `0.12 + fragment.intensity * 0.88` to retain some visibility on the dark side.
 
-# Lesson 3: Understanding the Main Render Loop
+Generated smooth normals are enabled initially so the flat/Gouraud/per-fragment comparison is visible. They average adjacent face normals without modifying positions. Press `N` to restore the exported faceted normals. The silhouette is identical in both modes.
 
-## Key Definitions
+## Suggested live progression
 
-    *Render Loop:* The continuous cycle that runs during the lifetime of a graphics application, responsible for updating the screen.
-    *Exit Condition:* A condition that, when met, terminates the render loop and closes the application.
-    *Buffer:* A block of memory used to store pixel data before it is rendered on the screen.
-    *Frame Rate (FPS):* The number of frames displayed per second. Higher frame rates result in smoother motion.
+1. Change the constant color in `live_shader`.
+2. Return `fragment.normal * 0.5 + Vector3::new(0.5, 0.5, 0.5)` to visualize normals.
+3. Compare presets 1–3 and inspect their different intensity inputs.
+4. Demonstrate `(A - B) * C + D` with preset 4.
+5. Write a sine wave from `fragment.object_position.y`, remap it to 0–1, and mix two colors.
+6. Add `uniforms.time`, then apply lighting.
+7. Replace or distort the wave with OpenSimplex. Explore the prepared planets and stars.
+8. Enable bloom and inspect the separate image passes.
+9. Open the GLSL sun and compare its math with `stars::sun`.
 
-## Main Parts of the Render Loop
+The console examples illustrate shading ideas, not complete console emulation. The N64 example samples a precomputed texture, recolors it with one combiner calculation, then applies Gouraud shade with another. Its float implementation omits the real hardware's input-routing restrictions and fixed-point rules. Two combiner cycles are not two scene render passes. References: [Nintendo's combiner tutorial](https://jrra.zone/n64/doc/tutorial/graphics/4/4_1.htm), [SGI/Nintendo RDP command reference](https://hcs64.com/files/RDP_COMMANDS.pdf).
 
-### - Initialization:
-        Set up necessary variables, buffers, and create the window.
+The workshop's normal transform assumes rotation and uniform scaling. Camera controls keep the supplied sphere in front of the near plane; this is not a general homogeneous polygon-clipping implementation. Procedural materials use perspective-correct surface interpolation; the historical Gouraud demonstration intentionally uses screen-space color/intensity interpolation.
 
-### - Exit Condition:
-        Check for conditions that signal the end of the application, such as a specific key press or window close event.
+## C++ / OpenGL comparison
 
-### - Listening to User Input:
-        Handle user inputs like keyboard and mouse events.
+Requires a C++17 compiler, CMake, GLFW, GLEW, GLM, and OpenGL 3.3 or later.
 
-### - Clearing the Buffer:
-        Clear the buffer to prepare it for the new frame's pixel data.
+```sh
+./run.sh --gpu
+```
 
-### - Drawing Phase:
-        Update the buffer with new pixel data to be rendered.
+- `gpu_demo/main.cpp`: window, sphere upload, shader compilation/linking, uniforms, draw call.
+- `gpu_demo/sphere.vert`: transformations and interpolated object coordinates.
+- `gpu_demo/sun.frag`: the same math as the CPU sine-wave sun.
 
-### - Update the Window:
-        Send the buffer data to the window for display.
+Space pauses, `R` toggles rotation, Home resets time/angle, and `F5` reloads GLSL files. Compilation failures print a diagnostic and keep the previous working program. Shader edits in Rust require rebuilding/restarting.
 
-### - Calculate Frame Rate:
-        Track and display the frame rate (FPS) for performance monitoring.
+The GPU renderer prints the actual renderer and OpenGL version at startup. Both demos use the same OBJ, initial camera, 1200×800 framebuffer, sun equations, and no intentional frame limiter. GPU VSync is explicitly disabled; a compositor may still limit presentation. Compare CPU preset 10 with bloom off and the default camera. The displayed FPS measures each complete application, including presentation; it is not a GPU execution timer or a Rust-versus-C++ benchmark. CPU uploads and UI also contribute to its total time.
 
-## Step-by-Step Guide
+## Export images for the board
 
-### 1. Initialization
+```sh
+cargo run --release -- --gallery /tmp/shader-gallery
+```
 
-    Create a buffer to store pixel data.
-    Create a window using a window management library (e.g., minifb).
+This works without a window. It exports all twelve presets at time 2 seconds and the sun's scene, bright extraction, blur, and bloom images. The mask is a teaching aid; the planet/star shaders generate their appearances from coordinates and noise rather than loaded surface images.
 
-### 2. Exit Condition
+Capture the matching GPU frame as a PPM image:
 
-    Continuously check if the exit condition (such as pressing the ESC key) is met to break out of the loop and close the application.
+```sh
+./target/gpu-demo/shader_workshop --frames 1 --time 2 --capture /tmp/gpu-sun.ppm
+```
 
-### 3. Listening to User Input
+For a bounded window smoke check:
 
-    Poll for user input (keyboard or mouse events) and handle accordingly.
+```sh
+cargo run --release -- --shader 10 --frames 3
+```
 
-### 4. Clearing the Buffer
-
-    Reset the buffer to a default state (e.g., setting all pixels to black) before drawing the new frame.
-
-### 5. Drawing Phase
-
-    Populate the buffer with the new frame's pixel data. This can include drawing shapes, images, or other graphics.
-
-### 6. Update the Window
-
-    Render the contents of the buffer to the window, making the new frame visible on the screen.
-
-### 7. Calculate Frame Rate
-
-    Track the time it takes to render each frame and calculate the frames per second (FPS) to monitor performance.
-
-This structure ensures a smooth and responsive graphics application by continuously updating and rendering frames in a loop. By understanding each part of the render loop, students will be able to create more complex and interactive graphics programs.
-
-# Lesson 2: Windows, Window Managers, Operating Systems, and Video Drivers
-
-In this lesson, we'll explore the concepts of windows, window managers, operating systems, and video drivers, and how they relate to each other in the context of computer graphics.
-
-## Definitions
-
-*Window:* A rectangular area on the screen where a program displays its output and receives user input. It's a fundamental building block of graphical user interfaces (GUIs).
-*Window Manager:* A system software component responsible for managing the placement, sizing, and appearance of windows within a windowing system. It controls the layout and decoration of windows.
-*Operating System (OS):* The software that manages computer hardware, software resources, and provides common services for computer programs. Examples include Windows, macOS, and Linux.
-*Video Driver:* A software component that enables communication between the operating system and the video hardware, such as the graphics card. It provides a standardized interface for programs to access video hardware capabilities.
-
-## The Abstraction of Windows
-
-The operating system provides an abstraction layer to create the illusion of windows in the framebuffer, which is essentially an array in memory. Here's how the process works:
-
-### 1. The operating system communicates with the video driver to manage the framebuffer and access the video hardware.
-### 2. Programs interact with the operating system's API to create and manage windows. They specify the size, position, and content of the windows.
-### 3. The window manager, which is a part of the operating system or a separate program running on top of it, receives the window creation requests and manages the layout and appearance of the windows.
-### 4. When a program wants to update the content of its window, it renders the graphics using APIs like OpenGL, DirectX, or Vulkan, which communicate with the video driver to access the video hardware.
-### 5. The window manager composes the individual windows' contents into a single image that represents the entire screen. This composition process involves combining the framebuffers of each window according to their positions and stacking order.
-### 6. The final composed image is then sent to the video driver, which displays it on the screen.
-
-## Window Managers in Different Operating Systems
-
-### - Windows: On Microsoft Windows, the window manager is an integral part of the operating system. It is called the Desktop Window Manager (DWM) and is responsible for compositing windows and providing visual effects.
-### - macOS: macOS uses a window manager called Quartz Compositor, which is part of the Cocoa framework. It handles window compositing and provides a consistent user interface experience.
-### - Linux: Linux has various window managers available, such as i3, a popular tiling window manager. Other common window managers include Mutter (GNOME), KWin (KDE), and Xfwm (Xfce). These window managers run on top of the X Window System (X11) or the newer Wayland protocol.
-
-The interaction between the operating system, window manager, and video driver creates the seamless experience of windows on the screen. The operating system provides the necessary abstractions and APIs for programs to create and manage windows, while the window manager handles the composition and layout of the windows. The video driver ensures that the final composed image is displayed correctly on the screen.
-
-Understanding this abstraction process and the role of each component is essential for developing graphical app
-
-Core Changes:
-
-1. Updated `.gitignore`:
-   - Removed `*.png` from ignored files.
-
-2. Modified `Cargo.toml`:
-   - Changed Rust edition from "2021" to "2024".
-   - Added a `[profile.dev]` section with `opt-level = 3` and `debug = false`.
-
-3. Updated README.md:
-   - Changed the title and introduction to focus on windows, window managers, operating systems, and video drivers.
-   - Reorganized content to explain the abstraction of windows.
-   - Added sections on window managers in different operating systems.
-
-4. Modified `src/framebuffer.rs`:
-   - Introduced a new `_render_to_file` method (renamed from `render_to_file`).
-   - Added a new `swap_buffers` method that interacts with Raylib for rendering.
-
-5. Updated `src/main.rs`:
-   - Imported `framebuffer` module.
-   - Initialized a Raylib window and thread.
-   - Implemented a main loop that calls `swap_buffers` continuously.
-
-Direct Impacts:
-
-1. Simplified API: The new `Framebuffer` class provides a more intuitive interface.
-
-2. Improved Performance: Using `raylib::Image` likely enhances performance compared to manual buffer management.
-
-3. Enhanced Features: The addition of `raylib` brings additional functionality and better graphics capabilities.
-
-4. Compatibility Issues: Code using the old `Framebuffer` implementation may require updates to work with the new `raylib`-based approach.
-
-5. Learning Curve: Developers familiar with the old implementation will need time to adapt to the new `raylib`-based approach.
-
-6. New Rendering Approach: The `swap_buffers` method introduces a new rendering mechanism using Raylib, which may require adjustments in how graphics are handled.
-
-7. Window Management Integration: The changes allow for better integration with window management systems through Raylib.
-
-8. Continuous Rendering: The main loop now continuously updates the framebuffer and renders it to the window, enabling smoother animations and interactions.
-
-### Core Changes
-
-1. **New Framebuffer Class**: A new `Framebuffer` class was introduced, replacing the previous implementation.
-
-2. **Dependency Addition**: The `raylib` library was added as a dependency.
-
-3. **Structural Changes**: The `Framebuffer` now uses `raylib::Image` instead of a raw buffer array.
-
-4. **Method Renamings**: Several methods were renamed for clarity and consistency.
-
-5. **Color Representation**: Colors are now represented using `raylib::Color` instead of `u32`.
-
-### Direct Impact
-
-1. **Simplified API**: The new `Framebuffer` class provides a more intuitive and easier-to-use interface.
-
-2. **Improved Performance**: Using `raylib::Image` likely improves performance compared to manual buffer management.
-
-3. **Enhanced Features**: The addition of `raylib` brings additional functionality and better graphics capabilities.
-
-4. **Compatibility Issues**: Code using the old `Framebuffer` might need updates to work with the new implementation.
-
-5. **Learning Curve**: Developers familiar with the old implementation may need time to adapt to the new `raylib`-based approach.
+Run `cargo test` to check combiner endpoints, perspective interpolation, all preset outputs, and bloom spreading.

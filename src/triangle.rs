@@ -1,133 +1,71 @@
-use crate::fragment::Fragment;
-use crate::vertex::Vertex;
-use crate::light::Light;
-use raylib::prelude::Vector3;
+use crate::{Uniforms, fragment::Fragment, pipeline::lighting, vertex::RasterVertex};
+use raylib::prelude::*;
 
-/// Calculate barycentric coordinates for a point P with respect to triangle (A, B, C)
-/// Returns (w1, w2, w3) where P = w1*A + w2*B + w3*C
-/// If the point is outside the triangle, one or more weights will be negative
-fn barycentric_coordinates(p_x: f32, p_y: f32, a: &Vertex, b: &Vertex, c: &Vertex) -> (f32, f32, f32) {
-    let a_x = a.transformed_position.x;
-    let a_y = a.transformed_position.y;
-    let b_x = b.transformed_position.x;
-    let b_y = b.transformed_position.y;
-    let c_x = c.transformed_position.x;
-    let c_y = c.transformed_position.y;
-
-    // Calculate the area of the parallelogram formed by vectors AB and AC
-    let denom = (b_y - c_y) * (a_x - c_x) + (c_x - b_x) * (a_y - c_y);
-
-    // Avoid division by zero for degenerate triangles
-    if denom.abs() < 1e-10 {
-        return (-1.0, -1.0, -1.0);
+pub fn triangle(vertices: &[RasterVertex], uniforms: &Uniforms) -> Vec<Fragment> {
+    let a = &vertices[0];
+    let b = &vertices[1];
+    let c = &vertices[2];
+    let p = a.screen_position;
+    let q = b.screen_position;
+    let r = c.screen_position;
+    let denominator = (q.y - r.y) * (p.x - r.x) + (r.x - q.x) * (p.y - r.y);
+    if denominator.abs() < 0.0001 || vertices.iter().any(|v| v.inverse_w <= 0.0) {
+        return Vec::new();
     }
-
-    // Calculate barycentric coordinates
-    let w1 = ((b_y - c_y) * (p_x - c_x) + (c_x - b_x) * (p_y - c_y)) / denom;
-    let w2 = ((c_y - a_y) * (p_x - c_x) + (a_x - c_x) * (p_y - c_y)) / denom;
-    let w3 = 1.0 - w1 - w2;
-
-    (w1, w2, w3)
-}
-
-pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex, light: &Light) -> Vec<Fragment> {
+    let min_x = p.x.min(q.x).min(r.x).floor().max(0.0) as i32;
+    let max_x =
+        p.x.max(q.x)
+            .max(r.x)
+            .ceil()
+            .min(uniforms.resolution.x - 1.0) as i32;
+    let min_y = p.y.min(q.y).min(r.y).floor().max(0.0) as i32;
+    let max_y =
+        p.y.max(q.y)
+            .max(r.y)
+            .ceil()
+            .min(uniforms.resolution.y - 1.0) as i32;
+    let face_normal = (b.world_position - a.world_position)
+        .cross(c.world_position - a.world_position)
+        .normalized();
+    let center = (a.world_position + b.world_position + c.world_position) / 3.0;
+    let flat_intensity = lighting(face_normal, center, uniforms.light_position);
     let mut fragments = Vec::new();
-
-    // === DEMO: Uncomment to show RGB color interpolation ===
-    // Assign RGB colors to the three vertices for interpolation demonstration
-    // let color1 = Vector3::new(1.0, 0.0, 0.0); // Red
-    // let color2 = Vector3::new(0.0, 0.0, 1.0); // Blue
-    // let color3 = Vector3::new(0.0, 1.0, 0.0); // Green
-
-    // Base gray color for all vertices
-    let base_color = Vector3::new(0.5, 0.5, 0.5);
-
-    // Get the bounding box of the triangle
-    let min_x = v1.transformed_position.x.min(v2.transformed_position.x).min(v3.transformed_position.x).floor() as i32;
-    let max_x = v1.transformed_position.x.max(v2.transformed_position.x).max(v3.transformed_position.x).ceil() as i32;
-    let min_y = v1.transformed_position.y.min(v2.transformed_position.y).min(v3.transformed_position.y).floor() as i32;
-    let max_y = v1.transformed_position.y.max(v2.transformed_position.y).max(v3.transformed_position.y).ceil() as i32;
-
-    // Iterate over each pixel in the bounding box
     for y in min_y..=max_y {
         for x in min_x..=max_x {
-            let p_x = x as f32 + 0.5; // Sample at pixel center
-            let p_y = y as f32 + 0.5;
-
-            // Calculate barycentric coordinates
-            let (w1, w2, w3) = barycentric_coordinates(p_x, p_y, v1, v2, v3);
-
-            // Check if point is inside the triangle
-            if w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0 {
-                // === DEMO: Uncomment to show RGB color interpolation ===
-                // Interpolate color using barycentric coordinates
-                // let interpolated_color = Vector3::new(
-                //     w1 * color1.x + w2 * color2.x + w3 * color3.x,
-                //     w1 * color1.y + w2 * color2.y + w3 * color3.y,
-                //     w1 * color1.z + w2 * color2.z + w3 * color3.z,
-                // );
-
-                // Interpolate normals using barycentric coordinates
-                let interpolated_normal = Vector3::new(
-                    w1 * v1.normal.x + w2 * v2.normal.x + w3 * v3.normal.x,
-                    w1 * v1.normal.y + w2 * v2.normal.y + w3 * v3.normal.y,
-                    w1 * v1.normal.z + w2 * v2.normal.z + w3 * v3.normal.z,
-                );
-
-                // Normalize the interpolated normal
-                let normal_length = (interpolated_normal.x * interpolated_normal.x
-                                   + interpolated_normal.y * interpolated_normal.y
-                                   + interpolated_normal.z * interpolated_normal.z).sqrt();
-                let mut normalized_normal = interpolated_normal;
-                if normal_length > 0.0 {
-                    normalized_normal.x /= normal_length;
-                    normalized_normal.y /= normal_length;
-                    normalized_normal.z /= normal_length;
-                }
-
-                // Interpolate position in world space for this fragment
-                let world_pos = Vector3::new(
-                    w1 * v1.position.x + w2 * v2.position.x + w3 * v3.position.x,
-                    w1 * v1.position.y + w2 * v2.position.y + w3 * v3.position.y,
-                    w1 * v1.position.z + w2 * v2.position.z + w3 * v3.position.z,
-                );
-
-                // Light direction (from surface to light) for this fragment
-                let mut light_dir = Vector3::new(
-                    light.position.x - world_pos.x,
-                    light.position.y - world_pos.y,
-                    light.position.z - world_pos.z,
-                );
-
-                // Normalize light direction
-                let light_length = (light_dir.x * light_dir.x + light_dir.y * light_dir.y + light_dir.z * light_dir.z).sqrt();
-                if light_length > 0.0 {
-                    light_dir.x /= light_length;
-                    light_dir.y /= light_length;
-                    light_dir.z /= light_length;
-                }
-
-                // Calculate per-fragment lighting intensity using interpolated normal (Lambertian shading)
-                let intensity = (normalized_normal.x * light_dir.x
-                               + normalized_normal.y * light_dir.y
-                               + normalized_normal.z * light_dir.z).max(0.0);
-
-                // Apply shading to base color
-                let shaded_color = Vector3::new(
-                    base_color.x * intensity,
-                    base_color.y * intensity,
-                    base_color.z * intensity,
-                );
-
-                // Interpolate depth using barycentric coordinates
-                let depth = w1 * v1.transformed_position.z
-                          + w2 * v2.transformed_position.z
-                          + w3 * v3.transformed_position.z;
-
-                fragments.push(Fragment::new_with_world_pos(p_x, p_y, shaded_color, depth, world_pos));
+            let sx = x as f32 + 0.5;
+            let sy = y as f32 + 0.5;
+            let w0 = ((q.y - r.y) * (sx - r.x) + (r.x - q.x) * (sy - r.y)) / denominator;
+            let w1 = ((r.y - p.y) * (sx - r.x) + (p.x - r.x) * (sy - r.y)) / denominator;
+            let w2 = 1.0 - w0 - w1;
+            if w0 < -0.00001 || w1 < -0.00001 || w2 < -0.00001 {
+                continue;
             }
+            let depth = p.z * w0 + q.z * w1 + r.z * w2;
+            if !(-1.0..=1.0).contains(&depth) {
+                continue;
+            }
+            let reciprocal = a.inverse_w * w0 + b.inverse_w * w1 + c.inverse_w * w2;
+            let u = w0 * a.inverse_w / reciprocal;
+            let v = w1 * b.inverse_w / reciprocal;
+            let w = w2 * c.inverse_w / reciprocal;
+            let normal = (a.normal * u + b.normal * v + c.normal * w).normalized();
+            let world_position = a.world_position * u + b.world_position * v + c.world_position * w;
+            fragments.push(Fragment {
+                position: Vector2::new(sx, sy),
+                object_position: a.object_position * u
+                    + b.object_position * v
+                    + c.object_position * w,
+                world_position,
+                normal,
+                face_normal,
+                uv: a.uv * u + b.uv * v + c.uv * w,
+                color: Vector3::new(1.0, 1.0, 1.0),
+                depth,
+                intensity: lighting(normal, world_position, uniforms.light_position),
+                flat_intensity,
+                gouraud_intensity: a.intensity * w0 + b.intensity * w1 + c.intensity * w2,
+            });
         }
     }
-
     fragments
 }
